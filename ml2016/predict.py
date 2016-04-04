@@ -22,7 +22,6 @@ from __future__ import print_function
 import logging
 import os
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +58,7 @@ def save_submission(pred, path):
 
     header = 'Id,Prediction\n'
     lines = [str(i) + ',' + str(pred[i]) + '\n' for i in sorted(pred)]
-    with open(path, 'w') as fo:
+    with open(path, 'wb') as fo:
         fo.write(header)
         for l in lines:
             fo.write(l)
@@ -72,8 +71,8 @@ def predict_const(data, val):
 
     Parameters
     ----------
-    data : dict[int, str]
-        Ids mapped to each line
+    data : dict[int, dict[str, str]]
+        Maps the id of each input line to a dictionary mapping fields to values.
 
     val : int
         Value to predict for each case in {-1, 1}.

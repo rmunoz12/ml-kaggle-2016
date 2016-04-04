@@ -1,16 +1,25 @@
 """
 Loading data and preprocessing.
+
+
+Features described in field_types.txt.
 """
 
+from __future__ import print_function
+import csv
+import logging
 
-def load_data(path, header=True):
+logger = logging.getLogger(__name__)
+
+
+def load_data(path):
     """
-    Loads the training or test data from quiz.csv.
+    Loads the training or test data, assummed to contain a header.
 
     Parameters
     ----------
     path : str
-        Filepath to test case data.
+        Filepath to training/test case data.
 
     header : bool
         Flag indicating whether the input contains a header line, which will be
@@ -18,17 +27,15 @@ def load_data(path, header=True):
 
     Returns
     -------
-    data : dict[int, str]
-        Maps the id of each input line to the line.
+    data : dict[int, dict[str, str]]
+        Maps the id of each input line to a dictionary mapping fields to values.
     """
     data = {}
     id = 1
-    with open(path) as fi:
-        # TODO use header names (see python csv module)
-        if header:
-            fi.next()
-        for line in fi:
+    with open(path, 'rb') as fi:
+        reader = csv.DictReader(fi)
+        for row in reader:
             # TODO apply preprocessing
-            data[id] = line
+            data[id] = row
             id += 1
     return data
