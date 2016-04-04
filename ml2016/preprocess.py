@@ -85,6 +85,60 @@ def encode_row(row, feat_types):
     return new_row
 
 
+def encode_dataset(data, feat_types):
+    """
+    Parameters
+    ----------
+    data : dict[str, dict[str, str]]
+        raw data read from input file with csv.DictReader
+
+    feat_types : dict[str, list[str]]
+        The result of load_feat_types().
+
+    Returns
+    -------
+    new_data : dict[str, dict[str, float64]]
+        Data with categorical variables encoded using one-hot-encoding.
+    """
+    logger.info('splitting numeric and factor features')
+    numeric_data, factor_data = {}, {}
+    for id, row in data.items():
+        numerics, factors = {}, {}
+        for f, v in row.items():
+            if f == 'label' or feat_types[f][0] == 'numeric':
+                numerics[f] = np.float64(v)
+            else:
+                factors[f] = v
+        numeric_data[id], factor_data[id] = numerics, factors
+
+    logger.info('encoding factor features')
+    factor_data = [factor_data[k] for k in sorted(factor_data)]
+    v = DictVectorizer()
+    x = v.fit_transform(factor_data)
+    factor_data = v.inverse_transform(x)
+
+    logger.info('combining numeric and encoded factor features')
+    typ_dicts = []
+    for f, typ in feat_types.items():
+        if len(typ) > 1:
+            typ_dicts.extend([{f: t} for t in typ])
+    v = DictVectorizer()
+    _ = v.fit_transform(typ_dicts)
+    names = v.get_feature_names()
+
+    new_data = numeric_data
+    for i in range(len(factor_data)):
+        if i % 1000 == 0:
+            logger.info('current idx: %d' % i)
+        id = i + 1
+        encoded_feats = factor_data[i]
+        for n in names:
+            if n not in encoded_feats.keys():
+                encoded_feats[n] = np.float64(0.0)
+        new_data[id].update(encoded_feats)
+    return new_data
+
+
 def _fresh_load_data(data_path, cache_folder, feat_types):
     """
     Loads the training or test data, assumed to contain a header, encodes all
@@ -111,25 +165,42 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
     fi = open(data_path, 'rb')
     if not os.path.exists(cache_folder):
         os.makedirs(cache_folder)
-    fo = open(cache_folder + 'encoded_' + os.path.split(data_path)[1], 'wb')
     reader = csv.DictReader(fi)
-    first_line = True
     for row in reader:
-        if id % 1000 == 0:
-            logger.info('reading and encoding line: %d' % id)
-        encoded_row = encode_row(row, feat_types)
-        data[id] = encoded_row
-        if first_line:
-            header = [k for k in sorted(encoded_row)]
-            header = ','.join(header) + '\n'
-            fo.write(header)
-            first_line = False
+        data[id] = row
+        id += 1
+    fi.close()
+
+    data = encode_dataset(data, feat_types)
+
+    cache_path = cache_folder + 'encoded_' + os.path.split(data_path)[1]
+    logger.info('caching encoded data to: %s' % cache_path)
+    fo = open(cache_path, 'wb')
+    header = [k for k in sorted(data[1])]
+    header = ','.join(header) + '\n'
+    fo.write(header)
+    for id in sorted(data):
+        encoded_row = data[id]
         line = [str(encoded_row[k]) for k in sorted(encoded_row)]
         line = ','.join(line) + '\n'
         fo.write(line)
-        id += 1
-    fi.close()
     fo.close()
+
+    # for row in reader:
+    #     if id % 1000 == 0:
+    #         logger.info('reading and encoding line: %d' % id)
+    #     encoded_row = encode_row(row, feat_types)
+    #     data[id] = encoded_row
+    #     if first_line:
+    #         header = [k for k in sorted(encoded_row)]
+    #         header = ','.join(header) + '\n'
+    #         fo.write(header)
+    #         first_line = False
+    #     line = [str(encoded_row[k]) for k in sorted(encoded_row)]
+    #     line = ','.join(line) + '\n'
+    #     fo.write(line)
+    #     id += 1
+    # fo.close()
     return data
 
 
