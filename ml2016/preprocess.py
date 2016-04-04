@@ -108,7 +108,7 @@ def _fresh_load_data(path, feat_types):
     reader = csv.DictReader(fi)
     first_line = True
     for row in reader:
-        if id % 100 == 0:
+        if id % 1000 == 0:
             logger.info('reading and encoding line: %d' % id)
         encoded_row = encode_row(row, feat_types)
         data[id] = encoded_row
