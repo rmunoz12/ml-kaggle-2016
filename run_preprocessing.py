@@ -26,8 +26,8 @@ def main():
         run_all = False
     if run_all or args.training:
         logger.info('preprocessing training data: data.csv')
-        data_s = load_data(config.paths.data_folder + 'data.csv',
-                           use_cache=False)
+        data_s = load_data(config.paths.training_data, config.paths.feat_types,
+                           config.paths.cache_folder, use_cache=False)
     if run_all or args.test:
         logger.info('preprocessing test data: quiz.csv')
         data_t = load_data(config.paths.data_folder + 'quiz.csv',

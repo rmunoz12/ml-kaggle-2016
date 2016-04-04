@@ -13,19 +13,24 @@ import os
 import numpy as np
 from sklearn.feature_extraction import DictVectorizer
 
-from config import config
-
 logger = logging.getLogger(__name__)
 
 
-def load_feat_types():
+def load_feat_types(path):
     """
+    Load feature type information.
+
+    Parameters
+    ----------
+    path : str
+        Path to field_types.txt
+
     Returns
     -------
     feature_types : dict[str, list[str]]
         Maps feature names to their raw types from field_types.txt.
     """
-    with open(config.paths.data_folder + 'field_types.txt', 'rb') as fi:
+    with open(path, 'rb') as fi:
         feat_types = {}
         for line in fi:
             k, v = line.split(' ', 1)
@@ -80,15 +85,18 @@ def encode_row(row, feat_types):
     return new_row
 
 
-def _fresh_load_data(path, feat_types):
+def _fresh_load_data(data_path, cache_folder, feat_types):
     """
     Loads the training or test data, assumed to contain a header, encodes all
     categorical features (using one-hot-encoding), and caches the result.
 
     Parameters
     ----------
-    path : str
+    data_path : str
         Filepath to training/test case data.
+
+    cache_folder : str
+        Path to store encoded data sets.
 
     feat_types : dict[str, list[str]]
         The result of load_feat_types().
@@ -100,11 +108,10 @@ def _fresh_load_data(path, feat_types):
     """
     data = {}
     id = 1
-    fi = open(path, 'rb')
-    if not os.path.exists(config.paths.cache_folder):
-        os.makedirs(config.paths.cache_folder)
-    fo = open(config.paths.cache_folder + 'encoded_' + os.path.split(path)[1],
-              'wb')
+    fi = open(data_path, 'rb')
+    if not os.path.exists(cache_folder):
+        os.makedirs(cache_folder)
+    fo = open(cache_folder + 'encoded_' + os.path.split(data_path)[1], 'wb')
     reader = csv.DictReader(fi)
     first_line = True
     for row in reader:
@@ -126,7 +133,7 @@ def _fresh_load_data(path, feat_types):
     return data
 
 
-def load_data(path, use_cache=True):
+def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
     """
     By default, loads the (encoded) training or test data from cache, otherwise,
     loads and encodes the data, assumed to contain a header, and caches the
@@ -134,9 +141,15 @@ def load_data(path, use_cache=True):
 
     Parameters
     ----------
-    path : str
+    data_path : str
         Filepath to training/test case data. Expects this value to be the
         original file path even when use_cache is True.
+
+    feat_types_path : str
+        Path to field_types.txt.
+
+    cache_folder : str
+        Path to store/load encoded data sets.
 
     use_cache : bool
         When true, attempts to load the cached data at a location determined
@@ -147,14 +160,14 @@ def load_data(path, use_cache=True):
     data : dict[int, dict[str, float64]]
         Maps the id of each input line to a dictionary mapping fields to values.
     """
-    cache_path = config.paths.cache_folder + \
-                 'encoded_' + os.path.split(path)[1]
+    cache_path = cache_folder + 'encoded_' + os.path.split(data_path)[1]
     if not use_cache or not os.path.exists(cache_path):
-        feat_types = load_feat_types()
-        logger.info('performing a fresh load of %s' % os.path.split(path)[1])
-        return _fresh_load_data(path, feat_types)
+        feat_types = load_feat_types(feat_types_path)
+        logger.info('performing a fresh load of %s'
+                    % os.path.split(data_path)[1])
+        return _fresh_load_data(data_path, cache_folder, feat_types)
     else:
-        logger.info('using cached version of %s' % os.path.split(path)[1])
+        logger.info('using cached version of %s' % os.path.split(data_path)[1])
         data = {}
         id = 1
         fi = open(cache_path, 'rb')
