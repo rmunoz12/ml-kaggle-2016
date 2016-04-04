@@ -17,44 +17,13 @@ Id,Prediction
 etc.
 """
 
-
 from __future__ import print_function
+
 import logging
 import os
 
 
 logger = logging.getLogger(__name__)
-
-
-def load_test_data(path, header=True):
-    """
-    Loads the test data from quiz.csv.
-
-    Parameters
-    ----------
-    path : str
-        Filepath to test case data.
-
-    header : bool
-        Flag indicating whether the input contains a header line, which will be
-        skipped.
-
-    Returns
-    -------
-    data : dict[int, str]
-        Maps the id of each input line to the line.
-    """
-    data = {}
-    id = 1
-    with open(path) as fi:
-        # TODO use header names (see python csv module)
-        if header:
-            fi.next()
-        for line in fi:
-            # TODO apply preprocessing
-            data[id] = line
-            id += 1
-    return data
 
 
 def _verify_pred_labels(pred):
@@ -97,14 +66,14 @@ def save_submission(pred, path):
     logger.info('saved submission file: %s' % path)
 
 
-def predict_const(path, val):
+def predict_const(data, val):
     """
     Load data and predict a constant value for all cases.
 
     Parameters
     ----------
-    path : str
-        Path to training/test cases.
+    data : dict[int, str]
+        Ids mapped to each line
 
     val : int
         Value to predict for each case in {-1, 1}.
@@ -118,10 +87,10 @@ def predict_const(path, val):
     ------
     ValueError
         If val is not in the set {-1, 1}.
+        :param data:
     """
     if val not in {-1, 1}:
         raise ValueError("val must be in {-1, 1}")
-    data = load_test_data(path)
     pred = {}
     for i, line in data.items():
         pred[i] = val

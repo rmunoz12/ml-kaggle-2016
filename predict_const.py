@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 import logging
 
 from config import config
+from ml2016.preprocess import load_data
 from ml2016.predict import predict_const, save_submission
 
 
@@ -27,6 +28,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
+    T = load_data(config.paths.data_folder + 'quiz.csv')
     logger.info('predicting a constant value: %d' % args.value)
-    pred = predict_const(config.paths.data_folder + 'quiz.csv', args.value)
+    pred = predict_const(T, args.value)
     save_submission(pred, config.paths.out_folder + args.filename)
