@@ -26,9 +26,13 @@ def get_args():
     return args
 
 
-if __name__ == '__main__':
+def main():
     args = get_args()
     T = load_data(config.paths.data_folder + 'quiz.csv')
     logger.info('predicting a constant value: %d' % args.value)
     pred = predict_const(T, args.value)
     save_submission(pred, config.paths.out_folder + args.filename)
+
+
+if __name__ == '__main__':
+    main()
