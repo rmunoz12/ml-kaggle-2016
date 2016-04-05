@@ -32,6 +32,16 @@ def _verify_pred_labels(pred):
     return True
 
 
+def _verify_pred_ids(pred):
+    j = 1
+    for i in sorted(pred):
+        if i != j:
+            raise ValueError("Unexpected prediction id: {}; Expected: {}"
+                             .format(i, j))
+        j += 1
+    return True
+
+
 def save_submission(pred, path):
     """
     Save a submission CSV file in proper format, sorted by id.
@@ -50,6 +60,8 @@ def save_submission(pred, path):
         If any predicted label is not in {-1, 1}.
     """
     if not _verify_pred_labels(pred):
+        raise ValueError
+    if not _verify_pred_ids(pred):
         raise ValueError
 
     folder = os.path.split(path)[0]
