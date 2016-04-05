@@ -5,6 +5,23 @@ Naive prediction functions, largely for testing purposes.
 from random import random
 
 
+def fraction_positive(Y):
+    """
+    Parameters
+    ----------
+    Y : csr_matrix
+        n x 1 array of labels
+
+    Returns
+    -------
+    frac_positive : float
+        Fraction of positive labels in Y
+    """
+    sum_positive = sum([1 if v == 1 else 0 for v in Y.toarray()])
+    frac_positive = sum_positive / Y.shape[0]
+    return frac_positive
+
+
 def predict_on_avg(data, avg_prob):
     """
     Load data and predict a constant value for all cases.

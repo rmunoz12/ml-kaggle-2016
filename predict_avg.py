@@ -4,13 +4,14 @@ labels in the training set.
 """
 
 from __future__ import division
-from argparse import ArgumentParser
+
 import logging
+from argparse import ArgumentParser
 
 from config import config
+from ml2016.naive import predict_on_avg, fraction_positive
 from ml2016.preprocess import load_data, extract_xy
 from ml2016.submit import save_submission
-from ml2016.naive import predict_on_avg
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,8 +35,7 @@ def main():
                                config.paths.cache_folder)
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
 
-    sum_positive = sum([1 if v == 1 else 0 for v in Ys.toarray()])
-    frac_positive = sum_positive / Ys.shape[0]
+    frac_positive = fraction_positive(Ys)
 
     T, col_names_T = load_data(config.paths.test_data,
                                config.paths.feat_types,
