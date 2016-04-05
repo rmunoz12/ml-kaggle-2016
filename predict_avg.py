@@ -9,8 +9,8 @@ import logging
 
 from config import config
 from ml2016.preprocess import load_data, extract_xy
-from ml2016.predict import predict_on_avg, save_submission
-
+from ml2016.submit import save_submission
+from ml2016.naive import predict_on_avg
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

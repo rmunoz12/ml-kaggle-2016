@@ -7,8 +7,8 @@ import logging
 
 from config import config
 from ml2016.preprocess import load_data
-from ml2016.predict import predict_const, save_submission
-
+from ml2016.submit import save_submission
+from ml2016.naive import predict_const
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

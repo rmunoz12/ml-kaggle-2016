@@ -13,7 +13,7 @@ import os
 
 from config import Config, Paths, cache_folder, feat_types
 from ml2016.preprocess import load_data
-from ml2016.predict import save_submission
+from ml2016.submit import save_submission
 
 
 logging.basicConfig(level=logging.INFO)
