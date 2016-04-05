@@ -152,7 +152,7 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
     orig_filename = orig_filename.rsplit('.', 1)[0]
     matrix_cache_path = cache_folder + 'encoded_' + \
                         orig_filename + '.mtx'
-    names_cache_path = cache_folder + 'encoded_labels_' + \
+    names_cache_path = cache_folder + 'encoded_col_names_' + \
                        orig_filename + '.json'
     logger.info('caching encoded data matrix to: %s' % matrix_cache_path)
     mmwrite(matrix_cache_path, data)
@@ -200,7 +200,7 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
     data_cache_path = cache_folder + \
                       'encoded_' + orig_filename + '.mtx'
     names_cache_path = cache_folder + \
-                        'encoded_labels_' + orig_filename + '.json'
+                        'encoded_col_names_' + orig_filename + '.json'
     if not use_cache or not os.path.exists(data_cache_path):
         feat_types = load_feat_types(feat_types_path)
         logger.info('performing a fresh load of %s'
@@ -213,3 +213,44 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
         with open(names_cache_path, 'rb') as fi:
             col_names = json.load(fi)
         return data, col_names
+
+
+def extract_xy(data, col_names, label_key="label"):
+    """
+    Given a labeled dataset `data`, where the labels are in value mapped to the
+    name `label_key` in `col_names`, split the data matrix into a feature
+    matrix `X` and label vector `Y`.
+
+    Parameters
+    ----------
+    data : csr_matrix
+        Sparse data matrix, with features and labels.
+
+    col_names : dict[str, int]
+        Map of column names to column indices in `data`.
+
+    label_key : str
+        The column name in `col_names` that indentifies the labels.
+
+    Returns
+    -------
+    X : csr_matrix
+        n x (num_feats) matrix of features
+
+    Y : csr_matrix
+        n x 1 vector of labels
+
+    col_names_X : dict[str, int]
+        Map of column names to column indices in `X`.
+    """
+    lbl_idx = col_names[label_key]
+    Y = data[:, lbl_idx]
+
+    X = hstack((data[:, :lbl_idx], data[:, (lbl_idx + 1):]), format='csr')
+    col_names_X = {}
+    for k, v in col_names.items():
+        if v > lbl_idx:
+            col_names_X[k] = v - 1
+        else:
+            col_names_X[k] = v
+    return X, Y, col_names_X
