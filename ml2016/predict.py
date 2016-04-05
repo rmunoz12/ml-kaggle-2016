@@ -71,8 +71,8 @@ def predict_const(data, val):
 
     Parameters
     ----------
-    data : dict[int, dict[str, str]]
-        Maps the id of each input line to a dictionary mapping fields to values.
+    data : csr_matrix
+        Sparse data matrix, with id increasing with row number.
 
     val : int
         Value to predict for each case in {-1, 1}.
@@ -91,6 +91,6 @@ def predict_const(data, val):
     if val not in {-1, 1}:
         raise ValueError("val must be in {-1, 1}")
     pred = {}
-    for i, line in data.items():
-        pred[i] = val
+    for i in range(data.shape[0]):
+        pred[i + 1] = val
     return pred

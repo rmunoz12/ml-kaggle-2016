@@ -30,8 +30,8 @@ def main():
                            config.paths.cache_folder, use_cache=False)
     if run_all or args.test:
         logger.info('preprocessing test data: quiz.csv')
-        data_t = load_data(config.paths.data_folder + 'quiz.csv',
-                           use_cache=False)
+        data_t = load_data(config.paths.test_data, config.paths.feat_types,
+                           config.paths.cache_folder, use_cache=False)
 
 
 if __name__ == '__main__':

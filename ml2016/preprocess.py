@@ -7,10 +7,13 @@ Features described in field_types.txt.
 
 from __future__ import print_function
 import csv
+import json
 import logging
 import os
 
 import numpy as np
+from scipy.io import mmread, mmwrite
+from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction import DictVectorizer
 
 logger = logging.getLogger(__name__)
@@ -41,50 +44,6 @@ def load_feat_types(path):
     return feat_types
 
 
-def encode_feat_instance(row, feature_name, feat_types):
-    """
-    Parameters
-    ----------
-    row : dict[str, str]
-
-
-    feature_name : str
-        feature identifier, e.g. '58'
-
-    Returns
-    -------
-
-    """
-    typ = feat_types[feature_name]
-    typ_dicts = [{feature_name: t} for t in typ]
-    # logger.info('FN: {} typ: {}'.format(feature_name, typ))
-    v1 = DictVectorizer()
-    x1 = v1.fit_transform(typ_dicts)
-    names = v1.get_feature_names()
-
-    val = row[feature_name]
-    assert(feature_name + '=' + val in names)
-
-    d = {feature_name: val}
-    v2 = DictVectorizer()
-    x2 = v2.fit_transform(d)
-    new_feat = v2.inverse_transform(x2)[0]
-    for n in names:
-        if n not in new_feat.keys():
-            new_feat[n] = np.float64(0.0)
-    return new_feat
-
-
-def encode_row(row, feat_types):
-    new_row = {}
-    for f, v in row.items():
-        if f == 'label' or feat_types[f][0] == 'numeric':
-            new_row[f] = np.float64(v)
-        else:
-            new_row.update(encode_feat_instance(row, f, feat_types))
-    return new_row
-
-
 def encode_dataset(data, feat_types):
     """
     Parameters
@@ -97,8 +56,12 @@ def encode_dataset(data, feat_types):
 
     Returns
     -------
-    new_data : dict[str, dict[str, float64]]
+    new_data : csr_matrix
         Data with categorical variables encoded using one-hot-encoding.
+
+    col_names : dict[str, int]
+        Maps names of columns in new_data to column indexes. This dictionary
+        is invertible.
     """
     logger.info('splitting numeric and factor features')
     numeric_data, factor_data = {}, {}
@@ -113,30 +76,38 @@ def encode_dataset(data, feat_types):
 
     logger.info('encoding factor features')
     factor_data = [factor_data[k] for k in sorted(factor_data)]
-    v = DictVectorizer()
-    x = v.fit_transform(factor_data)
-    factor_data = v.inverse_transform(x)
 
-    logger.info('combining numeric and encoded factor features')
     typ_dicts = []
     for f, typ in feat_types.items():
         if len(typ) > 1:
             typ_dicts.extend([{f: t} for t in typ])
-    v = DictVectorizer()
-    _ = v.fit_transform(typ_dicts)
-    names = v.get_feature_names()
+    dv = DictVectorizer()
+    dv.fit(typ_dicts)
+    x = dv.transform(factor_data)
 
-    new_data = numeric_data
-    for i in range(len(factor_data)):
-        if i % 1000 == 0:
-            logger.info('current idx: %d' % i)
-        id = i + 1
-        encoded_feats = factor_data[i]
-        for n in names:
-            if n not in encoded_feats.keys():
-                encoded_feats[n] = np.float64(0.0)
-        new_data[id].update(encoded_feats)
-    return new_data
+    logger.info('combining numeric and encoded factor features')
+    new_data = []
+    num_col_names = sorted(numeric_data[1].keys())
+    num_col_idx = {}
+    for i in range(len(num_col_names)):
+        num_col_idx[num_col_names[i]] = i
+
+    for k in sorted(numeric_data):
+        row = numeric_data[k]
+        new_row = []
+        for f in sorted(row):
+            v = row[f]
+            new_row.append(v)
+        new_data.append(new_row)
+    new_data = csr_matrix(new_data)
+    new_data = hstack((new_data, x), format='csr')
+
+    factor_col_idx = \
+        {k: val + len(num_col_idx) for k, val in dv.vocabulary_.items()}
+
+    col_names = num_col_idx
+    col_names.update(factor_col_idx)
+    return new_data, col_names
 
 
 def _fresh_load_data(data_path, cache_folder, feat_types):
@@ -157,8 +128,12 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
 
     Returns
     -------
-    data : dict[int, dict[str, float64]]
-        Maps the id of each input line to a dictionary mapping fields to values.
+    data : csr_matrix
+        Sparse data matrix, with id increasing with row number.
+
+    col_names : dict[str, int]
+        Maps names of columns in new_data to column indexes. This dictionary
+        is invertible.
     """
     data = {}
     id = 1
@@ -171,37 +146,22 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
         id += 1
     fi.close()
 
-    data = encode_dataset(data, feat_types)
+    data, col_names = encode_dataset(data, feat_types)
 
-    cache_path = cache_folder + 'encoded_' + os.path.split(data_path)[1]
-    logger.info('caching encoded data to: %s' % cache_path)
-    fo = open(cache_path, 'wb')
-    header = [k for k in sorted(data[1])]
-    header = ','.join(header) + '\n'
-    fo.write(header)
-    for id in sorted(data):
-        encoded_row = data[id]
-        line = [str(encoded_row[k]) for k in sorted(encoded_row)]
-        line = ','.join(line) + '\n'
-        fo.write(line)
-    fo.close()
+    orig_filename = os.path.split(data_path)[1]
+    orig_filename = orig_filename.rsplit('.', 1)[0]
+    matrix_cache_path = cache_folder + 'encoded_' + \
+                        orig_filename + '.mtx'
+    names_cache_path = cache_folder + 'encoded_labels_' + \
+                       orig_filename + '.json'
+    logger.info('caching encoded data matrix to: %s' % matrix_cache_path)
+    mmwrite(matrix_cache_path, data)
+    logger.info('caching encoded data matrix column names to: %s' %
+                names_cache_path)
+    with open(names_cache_path, 'wb') as fo:
+        json.dump(col_names, fo)
 
-    # for row in reader:
-    #     if id % 1000 == 0:
-    #         logger.info('reading and encoding line: %d' % id)
-    #     encoded_row = encode_row(row, feat_types)
-    #     data[id] = encoded_row
-    #     if first_line:
-    #         header = [k for k in sorted(encoded_row)]
-    #         header = ','.join(header) + '\n'
-    #         fo.write(header)
-    #         first_line = False
-    #     line = [str(encoded_row[k]) for k in sorted(encoded_row)]
-    #     line = ','.join(line) + '\n'
-    #     fo.write(line)
-    #     id += 1
-    # fo.close()
-    return data
+    return data, col_names
 
 
 def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
@@ -228,23 +188,28 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
 
     Returns
     -------
-    data : dict[int, dict[str, float64]]
-        Maps the id of each input line to a dictionary mapping fields to values.
+    data : csr_matrix
+        Sparse data matrix, with id increasing with row number.
+
+    col_names : dict[str, int]
+        Maps names of columns in new_data to column indexes. This dictionary
+        is invertible.
     """
-    cache_path = cache_folder + 'encoded_' + os.path.split(data_path)[1]
-    if not use_cache or not os.path.exists(cache_path):
+    orig_filename = os.path.split(data_path)[1]
+    orig_filename = orig_filename.rsplit('.', 1)[0]
+    data_cache_path = cache_folder + \
+                      'encoded_' + orig_filename + '.mtx'
+    names_cache_path = cache_folder + \
+                        'encoded_labels_' + orig_filename + '.json'
+    if not use_cache or not os.path.exists(data_cache_path):
         feat_types = load_feat_types(feat_types_path)
         logger.info('performing a fresh load of %s'
                     % os.path.split(data_path)[1])
         return _fresh_load_data(data_path, cache_folder, feat_types)
     else:
         logger.info('using cached version of %s' % os.path.split(data_path)[1])
-        data = {}
-        id = 1
-        fi = open(cache_path, 'rb')
-        reader = csv.DictReader(fi)
-        for row in reader:
-            data[id] = row
-            id += 1
-        fi.close()
-        return data
+        data = mmread(data_cache_path)
+        data = data.tocsr()
+        with open(names_cache_path, 'rb') as fi:
+            col_names = json.load(fi)
+        return data, col_names
