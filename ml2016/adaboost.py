@@ -1,4 +1,5 @@
 import logging
+from math import ceil, log
 
 import numpy as np
 from sklearn.tree import DecisionTreeClassifier
@@ -30,11 +31,16 @@ def train_adaboost(X, Y, n_est=100):
 def train_cv(X, Y, max_n_est=100, n_jobs=1):
     logger.info("Training cross-validated adaboost")
 
+    n_to_try = list(range(int(ceil(log(max_n_est, 2)))))
+    n_to_try = [2 ** n for n in n_to_try]
+    if max_n_est != n_to_try[-1]:
+        n_to_try.append(max_n_est)
+
     Y = Y.toarray().ravel()
     cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
     err_cv = np.zeros((max_n_est,))
 
-    for n_est in range(1, max_n_est + 1):
+    for n_est in n_to_try:
         clf = AdaBoostClassifier(n_estimators=n_est)
         scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
         logger.info("n_est: %d \t cv_err: %f" % (n_est, 1 - scores.mean()))
