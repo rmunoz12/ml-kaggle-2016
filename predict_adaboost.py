@@ -21,9 +21,24 @@ logger = logging.getLogger(__name__)
 
 
 def plot(err_cv):
+    """
+    Plots number of estimators vs cross-validation error.
+
+    Parameters
+    ----------
+    err_cv : dict[int, float]
+        Cross-validation errors
+    """
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(np.arange(len(err_cv)) + 1, err_cv,
+
+    n_est, errs = [], []
+    for k in sorted(err_cv):
+        v = err_cv[k]
+        n_est.append(k)
+        errs.append(v)
+
+    ax.plot(n_est, errs,
             label='Real AdaBoost CV Error')
     ax.set_ylim((0.0, 0.5))
     ax.set_xlabel('n_estimators')
@@ -57,12 +72,17 @@ def main():
 
 
     err_cv = train_cv(Xs, Ys, args.n_est, args.jobs)
-    logger.info("minimum cv error: %f" % min(err_cv))
 
     plot(err_cv)
 
     logger.info("training cross-validated classifier")
-    clf = train_adaboost(Xs, Ys, list(err_cv).index(min(err_cv)))
+
+    # n = list(err_cv).index(min(err_cv))
+    min_err = min(err_cv.values())
+    n = min([k for k, v in err_cv.items() if v == min_err])
+    logger.info("minimum cv error: %f" % min_err)
+
+    clf = train_adaboost(Xs, Ys, n)
 
     T, col_names_T = load_data(config.paths.test_data,
                                config.paths.feat_types,
@@ -74,7 +94,7 @@ def main():
     test_pred = clf.predict(Xt)
     pred = {}
     for i, lbl in enumerate(test_pred):
-        pred[i + 1] = lbl
+        pred[i + 1] = int(lbl)
     save_submission(pred, config.paths.out_folder + args.filename)
 
 

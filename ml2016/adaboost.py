@@ -13,6 +13,25 @@ logger = logging.getLogger(__name__)
 
 
 def train_adaboost(X, Y, n_est=100):
+    """
+    Train an adaboost classifier using decision stumps.
+
+    Parameters
+    ----------
+    X : csr_matrix
+        (n x n_feats) feature matrix
+
+    Y : csr_matrix
+        n x 1 array of labels
+
+    n_est : int
+        Number of estimators to use for the classifier.
+
+    Returns
+    -------
+    clf : AdaBoostClassifier
+        Classifier fit to X and Y
+    """
     logger.info("Training adaboost with n_estimators: %d" % n_est)
 
     Y = Y.toarray().ravel()
@@ -29,6 +48,31 @@ def train_adaboost(X, Y, n_est=100):
 
 
 def train_cv(X, Y, max_n_est=100, n_jobs=1):
+    """
+    Report 10-fold cross-validation scores for training an adaboost classifier
+    using decision stumps.
+
+    Parameters
+    ----------
+    X : csr_matrix
+        (n x n_feats) feature matrix
+
+    Y : csr_matrix
+        n x 1 array of labels
+
+    max_n_est : int
+        Max number of estimators to use for the classifier. Additionally,
+        all powers of 2 that are less than `max_n_est` will be tried.
+
+    n_jobs : int
+        Number of cores to use during cross-validation scoring. A value of -1
+        will use all available cores.
+
+    Returns
+    -------
+    err_cv : dict[int, float]
+        Cross-validation errors for each value tested.
+    """
     logger.info("Training cross-validated adaboost")
 
     n_to_try = list(range(int(ceil(log(max_n_est, 2)))))
@@ -38,13 +82,14 @@ def train_cv(X, Y, max_n_est=100, n_jobs=1):
 
     Y = Y.toarray().ravel()
     cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
-    err_cv = np.zeros((max_n_est,))
+
+    err_cv = {}
 
     for n_est in n_to_try:
         clf = AdaBoostClassifier(n_estimators=n_est)
         scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
         logger.info("n_est: %d \t cv_err: %f" % (n_est, 1 - scores.mean()))
-        err_cv[n_est - 1] = 1 - scores.mean()
+        err_cv[n_est] = 1 - scores.mean()
 
     return err_cv
 
