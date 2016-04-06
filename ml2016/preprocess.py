@@ -215,6 +215,39 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
         return data, col_names
 
 
+def drop_feature(data, col_names, feature_name):
+    """
+    Parameters
+    ----------
+    data : csr_matrix
+        Sparse data matrix with feature to be dropped.
+
+    col_names : dict[str, int]
+        Map of column names to column indices in `data`.
+
+    feature_name : string
+        Column to be removed.
+
+    Returns
+    -------
+    X : csr_matrix
+        `data` without the dropped feature.
+
+    col_names_X : dict[str, int]
+        Map of column names to column indices in `X`.
+    """
+    f_idx = col_names[feature_name]
+    X = hstack((data[:, :f_idx], data[:, (f_idx + 1):]), format='csr')
+
+    col_names_X = {}
+    for k, v in col_names.items():
+        if v > f_idx:
+            col_names_X[k] = v - 1
+        else:
+            col_names_X[k] = v
+    return X, col_names_X
+
+
 def extract_xy(data, col_names, label_key="label"):
     """
     Given a labeled dataset `data`, where the labels are in value mapped to the
@@ -246,11 +279,5 @@ def extract_xy(data, col_names, label_key="label"):
     lbl_idx = col_names[label_key]
     Y = data[:, lbl_idx]
 
-    X = hstack((data[:, :lbl_idx], data[:, (lbl_idx + 1):]), format='csr')
-    col_names_X = {}
-    for k, v in col_names.items():
-        if v > lbl_idx:
-            col_names_X[k] = v - 1
-        else:
-            col_names_X[k] = v
+    X, col_names_X = drop_feature(data, col_names, label_key)
     return X, Y, col_names_X
