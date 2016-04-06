@@ -1,20 +1,20 @@
-Idx  Feature  Type     Notes
----  -------  -------  -----
-0    0        factor
+Idx  Feature  Type     Notes(Test Set)
+---  -------  -------  ---------------
+0    0        factor   13 levels
 1    2        numeric
-2    5        factor
-3    7        factor
-4    8        factor
-5    9        factor
+2    5        factor   112 levels
+3    7        factor   2 levels
+4    8        factor   13 levels
+5    9        factor   13 levels
 6    11       numeric
-7    14       factor
-8    16       factor
-9    17       factor
-10   18       factor
-11   20       factor
-12   23       factor
-13   25       factor
-14   26       factor
+7    14       factor   112 levels
+8    16       factor   2 levels
+9    17       factor   13 levels
+10   18       factor   142 levels
+11   20       factor   4 levels
+12   23       factor   2838 levels
+13   25       factor   4 levels
+14   26       factor   137 levels
 15   27       numeric
 16   28       numeric
 17   29       numeric
@@ -44,9 +44,9 @@ Idx  Feature  Type     Notes
 41   53       numeric
 42   54       numeric
 43   55       numeric
-44   56       factor
-45   57       factor
-46   58       factor
+44   56       factor   101 levels
+45   57       factor   100 levels
+46   58       factor   1952 levels
 47   59       numeric
 48   60       numeric
 49   62       numeric
