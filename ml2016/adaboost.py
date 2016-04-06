@@ -27,7 +27,7 @@ def train_adaboost(X, Y, n_est=100):
     return clf
 
 
-def train_cv(X, Y, max_n_est=100):
+def train_cv(X, Y, max_n_est=100, n_jobs=1):
     logger.info("Training cross-validated adaboost")
 
     Y = Y.toarray().ravel()
@@ -36,7 +36,7 @@ def train_cv(X, Y, max_n_est=100):
 
     for n_est in range(1, max_n_est + 1):
         clf = AdaBoostClassifier(n_estimators=n_est)
-        scores = cross_val_score(clf, X, Y, cv=cv)
+        scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
         logger.info("n_est: %d \t cv_err: %f" % (n_est, 1 - scores.mean()))
         err_cv[n_est - 1] = 1 - scores.mean()
 

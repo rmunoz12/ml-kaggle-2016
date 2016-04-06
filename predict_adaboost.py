@@ -41,6 +41,9 @@ def get_args():
     p.add_argument('-n', '--n-est',
                    help="max adaboost estimators (default: %(default)s)",
                    type=int, default=100)
+    p.add_argument('-j', '--jobs',
+                   help='number of cv processes (default: %(default)d)',
+                   type=int, default=1)
     args = p.parse_args()
     return args
 
@@ -53,7 +56,7 @@ def main():
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
 
 
-    err_cv = train_cv(Xs, Ys, args.n_est)
+    err_cv = train_cv(Xs, Ys, args.n_est, args.jobs)
     logger.info("minimum cv error: %f" % min(err_cv))
 
     plot(err_cv)
