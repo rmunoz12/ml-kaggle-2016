@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from config import config
-from ml2016.adaboost import train_adaboost, train_cv
+from ml2016.gbm import train_cv
 from ml2016.preprocess import drop_feature, load_data, extract_xy
 from ml2016.submit import save_submission
 
@@ -38,32 +38,9 @@ def get_args():
     return args
 
 
-def plot(err_cv):
-    """
-    Plots number of estimators vs cross-validation error.
+def plot():
+    pass
 
-    Parameters
-    ----------
-    err_cv : dict[int, float]
-        Cross-validation errors
-    """
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    n_est, errs = [], []
-    for k in sorted(err_cv):
-        v = err_cv[k]
-        n_est.append(k)
-        errs.append(v)
-
-    ax.plot(n_est, errs,
-            label='Real AdaBoost CV Error')
-    ax.set_ylim((0.0, 0.5))
-    ax.set_xlabel('n_estimators')
-    ax.set_ylabel('error rate')
-    leg = ax.legend(loc='upper right', fancybox=True)
-    leg.get_frame().set_alpha(0.7)
-    plt.show()
 
 def main():
     args = get_args()
@@ -78,19 +55,19 @@ def main():
             if name[:2] == '23' or name[:2] == '58':
                 Xs, col_names_S = drop_feature(Xs, col_names_S, name)
 
-    err_cv = train_cv(Xs, Ys, args.n_est, args.jobs)
+    # err_cv = train_cv(Xs, Ys, args.n_est, n_jobs=args.jobs)
+    clf = train_cv(Xs, Ys)
 
-    plot(err_cv)
 
-    logger.info("training cross-validated classifier")
 
-    # n = list(err_cv).index(min(err_cv))
-    min_err = min(err_cv.values())
-    n = min([k for k, v in err_cv.items() if v == min_err])
-    logger.info("minimum cv error: %f" % min_err)
+    # logger.info("training cross-validated classifier")
 
-    clf = train_adaboost(Xs, Ys, n)
-
+    # min_err = min(err_cv.values())
+    # n = min([k for k, v in err_cv.items() if v == min_err])
+    # logger.info("minimum cv error: %f" % min_err)
+    #
+    # clf = train_adaboost(Xs, Ys, n)
+    #
     T, col_names_T = load_data(config.paths.test_data,
                                config.paths.feat_types,
                                config.paths.cache_folder)
