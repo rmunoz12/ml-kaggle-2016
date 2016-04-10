@@ -3,8 +3,6 @@ from __future__ import division
 import logging
 from argparse import ArgumentParser
 
-from matplotlib import pyplot as plt
-
 from config import config
 from ml2016.adaboost import Adaboost
 from ml2016.logistic_reg import LogisticReg
@@ -43,34 +41,6 @@ def get_args():
 
     args = p.parse_args()
     return args
-
-
-def plot(err_cv):
-    """
-    Plots number of estimators vs cross-validation error.
-
-    Parameters
-    ----------
-    err_cv : dict[int, float]
-        Cross-validation errors
-    """
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-
-    n_est, errs = [], []
-    for k in sorted(err_cv):
-        v = err_cv[k]
-        n_est.append(k)
-        errs.append(v)
-
-    ax.plot(n_est, errs,
-            label='Real AdaBoost CV Error')
-    ax.set_ylim((0.0, 0.5))
-    ax.set_xlabel('n_estimators')
-    ax.set_ylabel('error rate')
-    leg = ax.legend(loc='upper right', fancybox=True)
-    leg.get_frame().set_alpha(0.7)
-    plt.show()
 
 
 def choose_model(args):
