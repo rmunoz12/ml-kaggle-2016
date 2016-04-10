@@ -1,20 +1,32 @@
 import logging
-from math import ceil, log
+from time import time
 
-import numpy as np
 from sklearn.cross_validation import cross_val_score, KFold
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import zero_one_loss
+from sklearn.grid_search import GridSearchCV
 
+from .util import BaseClassifier
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class LogisticReg:
-    @staticmethod
-    def train(X, Y, reg=1.0):
+class LogisticReg(BaseClassifier):
+    """
+    Logistic Regression wrapper class.
+
+    Attributes
+    ----------
+    clf : LogisticRegression | None
+        Classifier set only after calling `fit` or `tune`.
+    """
+    def __init__(self):
+        super(LogisticReg, self).__init__()
+
+    def fit(self, X, Y, C=1.0):
         """
-        Train a nearest neighbor classifier.
+        Train a logistic regression classifier.
+
+        Sets `self.clf` equal to the trained classifier.
 
         Parameters
         ----------
@@ -22,34 +34,32 @@ class LogisticReg:
             (n x n_feats) feature matrix
 
         Y : csr_matrix
-            n x 1 array of labels
+            (n x 1) array of labels
 
-        reg : float
+        C : float
             Inverse regularization strength: smaller = stronger regularization
 
         Returns
         -------
-        clf : LogisticRegression
-            Classifier fit to X and Y
+        score_train : float
+            Score of the classifier on the training set.
         """
-        logger.info("Training logistic regression with reg: %d" % reg)
+        logger.info("Training logistic regression <C=%f>" % C)
 
+        self.clf = LogisticRegression(C=C)
         Y = Y.toarray().ravel()
+        self.clf.fit(X, Y)
+        score_train = self.clf.score(X, Y)
+        logger.info("Training score: %0.5f" % score_train)
+        return score_train
 
-
-        clf = LogisticRegression(C=reg)
-        clf.fit(X, Y)
-        pred_train = clf.predict(X)
-        loss_train = sum(pred_train != Y)
-        score_train = clf.score(X, Y)
-        logger.info("r: {:3}\t loss: {:4d}\t error: {:.5f}"
-                    .format(reg, loss_train, 1 - score_train))
-        return clf
-
-    @staticmethod
-    def train_cv(X, Y, max_n_est=2.0, n_jobs=1):
+    def tune(self, X, Y, C=1.0, n_jobs=1, verbose=0):
         """
-        Report 10-fold cross-validation scores for training a nearest neighbor classifier.
+        Report 10-fold cross-validation scores for tuning `X` on `Y` using
+        a grid search over the hyper-parameters.
+
+        Sets `self.clf` equal to the classifier training on the best
+        parameters using the full set `X`.
 
         Parameters
         ----------
@@ -57,37 +67,39 @@ class LogisticReg:
             (n x n_feats) feature matrix
 
         Y : csr_matrix
-            n x 1 array of labels
+            (n x 1) array of labels
 
-        max_n_est : int
-            Max number of estimators to use for the classifier.
+        C : float | list[float]
+            Regularization parameter or parameters to try.
 
         n_jobs : int
-            Number of cores to use during cross-validation scoring. A value of -1
-            will use all available cores.
+            Number of cores to use during cross-validation scoring. A value
+            of -1 will use all available cores.
+
+        verbose : int
+            Verbosity of GridSearchCV, higher values output more messages.
 
         Returns
         -------
-        err_cv : dict[int, float]
-            Cross-validation errors for each value tested.
+        self.clf.best_params_ : dict[str, T]
+            Contains the best parameter values found.
         """
-        logger.info("Training cross-validated logistic regression")
+        if not isinstance(C, list):
+            C = [C]
 
-        n_to_try = list(np.linspace(0.1, 2.0, 5))
-        if max_n_est != n_to_try[-1]:
-            n_to_try.append(max_n_est)
+        logger.info("Grid searching (10-fold cv)")
+        start_time = time()
+
+        param_grid = [{'C': C}]
 
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
+        mdl = LogisticRegression()
+        self.clf = GridSearchCV(mdl, param_grid=param_grid, n_jobs=n_jobs,
+                                cv=cv, verbose=verbose)
 
-        err_cv = {}
+        self.clf.fit(X, Y)
+        self.report_cv_scores()
 
-        for n_est in n_to_try:
-            clf = LogisticRegression(C=n_est)
-            scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
-            logger.info("n_est: %0.2f \t cv_err: %f" % (n_est, 1 - scores.mean()))
-            err_cv[n_est] = 1 - scores.mean()
-
-        return err_cv
-
-
+        logger.info("--- %0.3f minutes ---" % ((time() - start_time) / 60))
+        return self.clf.best_params_
