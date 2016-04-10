@@ -1,96 +1,136 @@
+from __future__ import division
 import logging
-from math import ceil, log
+from time import time
 
-import numpy as np
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.cross_validation import cross_val_score, KFold
+from sklearn.cross_validation import KFold
 from sklearn.ensemble import AdaBoostClassifier
-from sklearn.metrics import zero_one_loss
+from sklearn.grid_search import GridSearchCV
 
+from .util import BaseClassifier
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def train_adaboost(X, Y, n_est=100):
+class Adaboost(BaseClassifier):
     """
-    Train an adaboost classifier using decision stumps.
+    Adaboost wrapper class.
 
-    Parameters
+    Attributes
     ----------
-    X : csr_matrix
-        (n x n_feats) feature matrix
-
-    Y : csr_matrix
-        n x 1 array of labels
-
-    n_est : int
-        Number of estimators to use for the classifier.
-
-    Returns
-    -------
-    clf : AdaBoostClassifier
-        Classifier fit to X and Y
+    clf : AdaBoostClassifier | None
+        Classifier set only after calling `fit` or `tune`.
     """
-    logger.info("Training adaboost with n_estimators: %d" % n_est)
+    def __init__(self):
+        super(Adaboost, self).__init__()
 
-    Y = Y.toarray().ravel()
+    def fit(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1):
+        """
+        Train an Adaboost classifier decision trees.
 
-    # clf = DecisionTreeClassifier(max_depth=1)
-    clf = AdaBoostClassifier(n_estimators=n_est)
-    clf.fit(X, Y)
-    pred_train = clf.predict(X)
-    loss_train = sum(pred_train != Y)
-    score_train = clf.score(X, Y)
-    logger.info("r: {:3}\t loss: {:4d}\t error: {:.5f}"
-                .format(n_est, loss_train, 1 - score_train))
-    return clf
+        Sets `self.clf` equal to the trained classifier.
 
+        Parameters
+        ----------
+        X : csr_matrix
+            (n x n_feats) feature matrix
 
-def train_cv(X, Y, max_n_est=100, n_jobs=1):
-    """
-    Report 10-fold cross-validation scores for training an adaboost classifier
-    using decision stumps.
+        Y : csr_matrix
+            n x 1 array of labels
 
-    Parameters
-    ----------
-    X : csr_matrix
-        (n x n_feats) feature matrix
+        n_estimators : int
+            Number of estimators to use for the classifier.
 
-    Y : csr_matrix
-        n x 1 array of labels
+        learning_rate : float
+            Rate of decreasing estimator contribution.
 
-    max_n_est : int
-        Max number of estimators to use for the classifier. Additionally,
-        all powers of 2 that are less than `max_n_est` will be tried.
+        Returns
+        -------
+        score_train : float
+            Score of the classifier on the training set.
+        """
+        logger.info("Training Adaboost "
+                    "<max_depth=%d, n_estimators=%d, learning_rate=%f>"
+                    % (max_depth, n_estimators, learning_rate))
+        base_estimator = DecisionTreeClassifier(max_depth=max_depth)
+        self.clf = AdaBoostClassifier(base_estimator=base_estimator,
+                                      n_estimators=n_estimators,
+                                      learning_rate=learning_rate)
+        Y = Y.toarray().ravel()
+        self.clf.fit(X, Y)
+        score_train = self.clf.score(X, Y)
+        logger.info("Training score: %0.5f" % score_train)
+        return score_train
 
-    n_jobs : int
-        Number of cores to use during cross-validation scoring. A value of -1
-        will use all available cores.
+    def tune(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1,
+             n_jobs=1, verbose=0):
+        """
+        Report 10-fold cross-validation scores for tuning `X` on `Y` using
+        a grid search over the hyper-parameters.
 
-    Returns
-    -------
-    err_cv : dict[int, float]
-        Cross-validation errors for each value tested.
-    """
-    logger.info("Training cross-validated adaboost")
+        Parameters
+        ----------
+        X : csr_matrix
+            (n x n_feats) feature matrix
 
-    n_to_try = list(range(int(ceil(log(max_n_est, 2)))))
-    n_to_try = [2 ** n for n in n_to_try]
-    if max_n_est != n_to_try[-1]:
-        n_to_try.append(max_n_est)
+        Y : csr_matrix
+            (n x 1) array of labels
 
-    Y = Y.toarray().ravel()
-    cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
+        max_depth : int | list[int]
+            The individual tree depth or list of depths to try.
 
-    err_cv = {}
+        n_estimators : int | list[int]
+            If int, then number of estimators to use for the classifier. If
+            list, then all values in the list will be tried.
 
-    for n_est in n_to_try:
-        clf = AdaBoostClassifier(n_estimators=n_est)
-        scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
-        logger.info("n_est: %d \t cv_err: %f" % (n_est, 1 - scores.mean()))
-        err_cv[n_est] = 1 - scores.mean()
+        learning_rate : float | list[float]
+            The learning_rate or list of learning rates to try.
 
-    return err_cv
+        n_jobs : int
+            Number of cores to use during cross-validation scoring. A value
+            of -1 will use all available cores.
 
+        verbose : int
+            Verbosity of GridSearchCV, higher values output more messages.
 
+        Returns
+        -------
+        self.clf.best_params_ : dict[str, T]
+            Contains the best parameter values found.
+        """
+        if not isinstance(max_depth, list):
+            max_depth = [max_depth]
+        if not isinstance(n_estimators, list):
+            n_estimators = [n_estimators]
+        if not isinstance(learning_rate, list):
+            learning_rate = [learning_rate]
+
+        logger.info("Grid searching (10-fold cv)")
+        start_time = time()
+
+        base_estimators = \
+            [DecisionTreeClassifier(max_depth=d) for d in max_depth]
+
+        param_grid = [{'base_estimator': base_estimators,
+                       'n_estimators': n_estimators,
+                       'learning_rate': learning_rate}]
+
+        Y = Y.toarray().ravel()
+        cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
+        mdl = AdaBoostClassifier()
+        self.clf = GridSearchCV(mdl, param_grid=param_grid, n_jobs=n_jobs,
+                                cv=cv, verbose=verbose)
+
+        self.clf.fit(X, Y)
+
+        logger.info("--- CV Scores ---")
+        for params, mean_cv_score, cv_scores in self.clf.grid_scores_:
+            logger.info("cv score: %0.5f (+/-%0.05f) for %r"
+                        % (mean_cv_score, cv_scores.std() * 2, params))
+
+        logger.info("--- Summary ---")
+        logger.info("Best parameters: %s" % self.clf.best_params_)
+        logger.info("Best score: %0.5f" % self.clf.best_score_)
+        logger.info("--- %0.3f minutes ---" % ((time() - start_time) / 60))
+        return self.clf.best_params_
