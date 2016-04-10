@@ -7,16 +7,16 @@ alternatively, import classes at the end to roll your own.
 """
 
 
-# Config.params.*
-adaboost = {'max_depth': 1,
-            'n_estimators': [1, 2],
+# config.params.*
+adaboost = {'max_depth': [1, 3],
+            'n_estimators': [1, 2, 4, 8, 16, 32],
             'learning_rate': 1.0}
 
-knn = {'n_neighbors': 1}
+knn = {'n_neighbors': [1, 3, 5]}
 
-logit = {'C': 1}
+logit = {'C': [0.7, 1, 1.3]}
 
-# Config.paths.*
+# config.paths.*
 training_data = 'data/data.csv'
 test_data = 'data/quiz.csv'
 out_folder = 'out/'
