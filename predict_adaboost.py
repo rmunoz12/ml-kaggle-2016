@@ -1,8 +1,3 @@
-"""
-Predict a positive label with the chance equal to the fraction of positive
-labels in the training set.
-"""
-
 from __future__ import division
 
 import logging
