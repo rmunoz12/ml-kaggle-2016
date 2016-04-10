@@ -1,20 +1,33 @@
 import logging
-from math import ceil, log
+from time import time
 
-import numpy as np
-from sklearn.cross_validation import cross_val_score, KFold
+from sklearn.cross_validation import KFold
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import zero_one_loss
+from sklearn.grid_search import GridSearchCV
 
+from .util import BaseClassifier
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class NNeighbors:
-    @staticmethod
-    def train(X, Y, nnbrs=5):
+
+class NNeighbors(BaseClassifier):
+    """
+    K-NearestNeighbors wrapper class.
+
+    Attributes
+    ----------
+    clf : KNeighborsClassifier | None
+        Classifier set only after calling `fit` or `tune`.
+    """
+    def __init__(self):
+        super(NNeighbors, self).__init__()
+
+    def train(self, X, Y, n_neighbors=5):
         """
         Train a nearest neighbor classifier.
+
+        Sets `self.clf` equal to the trained classifier.
 
         Parameters
         ----------
@@ -24,32 +37,29 @@ class NNeighbors:
         Y : csr_matrix
             n x 1 array of labels
 
-        nnbrs : int
+        n_neighbors : int
             Number of neighbors to use for the classifier.
 
         Returns
         -------
-        clf : KNeighborsClassifier
-            Classifier fit to X and Y
+        score_train : float
+            Score of the classifier on the training set.
         """
-        logger.info("Training nearest neighbors with nnbrs: %d" % nnbrs)
-
+        logger.info("Training KNN <n_neighbors=%d>" % n_neighbors)
+        self.clf = KNeighborsClassifier(n_neighbors=n_neighbors)
         Y = Y.toarray().ravel()
+        self.clf.fit(X, Y)
+        score_train = self.clf.score(X, Y)
+        logger.info("Training score: %0.5f" % score_train)
+        return score_train
 
-
-        clf = KNeighborsClassifier(n_neighbors=nnbrs)
-        clf.fit(X, Y)
-        pred_train = clf.predict(X)
-        loss_train = sum(pred_train != Y)
-        score_train = clf.score(X, Y)
-        logger.info("r: {:3}\t loss: {:4d}\t error: {:.5f}"
-                    .format(nnbrs, loss_train, 1 - score_train))
-        return clf
-
-    @staticmethod
-    def train_cv(X, Y, max_n_est=10, n_jobs=1):
+    def tune(self, X, Y, n_neighbors=1, n_jobs=1, verbose=0):
         """
-        Report 10-fold cross-validation scores for training a nearest neighbor classifier.
+        Report 10-fold cross-validation scores for tuning `X` on `Y` using
+        a grid search over the hyper-parameters.
+
+        Sets `self.clf` equal to the classifier training on the best
+        parameters using the full set `X`.
 
         Parameters
         ----------
@@ -59,35 +69,39 @@ class NNeighbors:
         Y : csr_matrix
             n x 1 array of labels
 
-        max_n_est : int
-            Max number of estimators to use for the classifier.
+        n_neighbors : int | list[int]
+            Number of neighbors, k, or list of k values to try.
 
         n_jobs : int
             Number of cores to use during cross-validation scoring. A value of -1
             will use all available cores.
 
+        verbose : int
+            Verbosity of GridSearchCV, higher values output more messages.
+
         Returns
         -------
-        err_cv : dict[int, float]
-            Cross-validation errors for each value tested.
+        self.clf.best_params_ : dict[str, T]
+            Contains the best parameter values found.
         """
-        logger.info("Training cross-validated nearest neighbors")
+        if not isinstance(n_neighbors, list):
+            n_neighbors = [n_neighbors]
 
-        n_to_try = list(np.arange(1, 10, 3))
-        if max_n_est != n_to_try[-1]:
-            n_to_try.append(max_n_est)
+        logger.info("Grid searching (10-fold cv)")
+        start_time = time()
+
+        param_grid = [{'n_neighbors': n_neighbors}]
 
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
 
-        err_cv = {}
+        mdl = KNeighborsClassifier()
+        self.clf = GridSearchCV(mdl, param_grid=param_grid, n_jobs=n_jobs,
+                                cv=cv, verbose=verbose)
+        self.clf.fit(X, Y)
+        self.report_cv_scores()
 
-        for n_est in n_to_try:
-            clf = KNeighborsClassifier(n_neighbors=n_est)
-            scores = cross_val_score(clf, X, Y, cv=cv, n_jobs=n_jobs)
-            logger.info("n_est: %d \t cv_err: %f" % (n_est, 1 - scores.mean()))
-            err_cv[n_est] = 1 - scores.mean()
-
-        return err_cv
+        logger.info("--- %0.3f minutes ---" % ((time() - start_time) / 60))
+        return self.clf.best_params_
 
 
