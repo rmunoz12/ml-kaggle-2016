@@ -37,7 +37,7 @@ class Adaboost(BaseClassifier):
             (n x n_feats) feature matrix
 
         Y : csr_matrix
-            n x 1 array of labels
+            (n x 1) array of labels
 
         n_estimators : int
             Number of estimators to use for the classifier.
@@ -68,6 +68,9 @@ class Adaboost(BaseClassifier):
         """
         Report 10-fold cross-validation scores for tuning `X` on `Y` using
         a grid search over the hyper-parameters.
+
+        Sets `self.clf` equal to the classifier training on the best
+        parameters using the full set `X`.
 
         Parameters
         ----------
@@ -123,14 +126,7 @@ class Adaboost(BaseClassifier):
                                 cv=cv, verbose=verbose)
 
         self.clf.fit(X, Y)
+        self.report_cv_scores()
 
-        logger.info("--- CV Scores ---")
-        for params, mean_cv_score, cv_scores in self.clf.grid_scores_:
-            logger.info("cv score: %0.5f (+/-%0.05f) for %r"
-                        % (mean_cv_score, cv_scores.std() * 2, params))
-
-        logger.info("--- Summary ---")
-        logger.info("Best parameters: %s" % self.clf.best_params_)
-        logger.info("Best score: %0.5f" % self.clf.best_score_)
         logger.info("--- %0.3f minutes ---" % ((time() - start_time) / 60))
         return self.clf.best_params_

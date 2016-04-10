@@ -7,13 +7,12 @@ from __future__ import division
 
 import logging
 from argparse import ArgumentParser
-from copy import copy
 
 from matplotlib import pyplot as plt
 
 from config import config
 from ml2016.adaboost import Adaboost
-from ml2016.preprocess import drop_feature, load_data, extract_xy
+from ml2016.preprocess import load_data, extract_xy, remove_cols
 from ml2016.submit import save_submission
 
 logging.basicConfig(level=logging.INFO)
@@ -66,14 +65,6 @@ def plot(err_cv):
     plt.show()
 
 
-def remove_cols(X, col_names):
-    names = copy(col_names)
-    for name in names:
-        if name[:2] == '23' or name[:2] == '58':
-            X, col_names = drop_feature(X, col_names, name)
-    return X, col_names
-
-
 def main():
     args = get_args()
     verbose = 0
@@ -90,27 +81,21 @@ def main():
 
 
     mdl = Adaboost()
-    best_params = mdl.tune(Xs, Ys, max_depth=[1, 3], n_estimators=[1, 2],
-                           learning_rate=[1], n_jobs=args.jobs, verbose=verbose)
-    best_params['max_depth'] = best_params['base_estimator'].max_depth
-    best_params.pop('base_estimator')
+    mdl.tune(Xs, Ys, max_depth=1, n_estimators=[1, 2],
+             learning_rate=1, n_jobs=args.jobs, verbose=verbose)
 
-    logger.info("Training model with best params")
-
-    final_mdl = Adaboost()
-    final_mdl.fit(Xs, Ys, **best_params)
+    logger.info("Training score: %0.5f" % mdl.score(Xs, Ys))
 
     T, col_names_T = load_data(config.paths.test_data,
                                config.paths.feat_types,
                                config.paths.cache_folder)
-    # Xt, Yt, col_names_t = extract_xy(T, col_names_T)
     Xt = T
 
     if args.ignore_high_d_feats:
         Xt, col_names_T = remove_cols(Xt, col_names_T)
 
     logger.info('predicting test set labels')
-    test_pred = final_mdl.predict(Xt)
+    test_pred = mdl.predict(Xt)
     pred = {}
     for i, lbl in enumerate(test_pred):
         pred[i + 1] = int(lbl)

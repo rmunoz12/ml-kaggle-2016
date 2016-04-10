@@ -10,6 +10,7 @@ import csv
 import json
 import logging
 import os
+from copy import copy
 
 import numpy as np
 from scipy.io import mmread, mmwrite
@@ -281,3 +282,11 @@ def extract_xy(data, col_names, label_key="label"):
 
     X, col_names_X = drop_feature(data, col_names, label_key)
     return X, Y, col_names_X
+
+
+def remove_cols(X, col_names):
+    names = copy(col_names)
+    for name in names:
+        if name[:2] == '23' or name[:2] == '58':
+            X, col_names = drop_feature(X, col_names, name)
+    return X, col_names
