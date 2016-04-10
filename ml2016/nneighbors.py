@@ -23,7 +23,7 @@ class NNeighbors(BaseClassifier):
     def __init__(self):
         super(NNeighbors, self).__init__()
 
-    def train(self, X, Y, n_neighbors=5):
+    def fit(self, X, Y, n_neighbors=5):
         """
         Train a nearest neighbor classifier.
 
