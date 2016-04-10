@@ -25,9 +25,9 @@ class Adaboost(BaseClassifier):
     def __init__(self):
         super(Adaboost, self).__init__()
 
-    def fit(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1):
+    def fit(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1.0):
         """
-        Train an Adaboost classifier decision trees.
+        Train an Adaboost classifier using decision trees.
 
         Sets `self.clf` equal to the trained classifier.
 
@@ -63,7 +63,7 @@ class Adaboost(BaseClassifier):
         logger.info("Training score: %0.5f" % score_train)
         return score_train
 
-    def tune(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1,
+    def tune(self, X, Y, max_depth=1, n_estimators=50, learning_rate=1.0,
              n_jobs=1, verbose=0):
         """
         Report 10-fold cross-validation scores for tuning `X` on `Y` using

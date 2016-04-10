@@ -82,7 +82,7 @@ def main():
 
     mdl = Adaboost()
     mdl.tune(Xs, Ys, max_depth=1, n_estimators=[1, 2],
-             learning_rate=1, n_jobs=args.jobs, verbose=verbose)
+             learning_rate=1.0, n_jobs=args.jobs, verbose=verbose)
 
     logger.info("Training score: %0.5f" % mdl.score(Xs, Ys))
 
