@@ -7,6 +7,8 @@ from matplotlib import pyplot as plt
 
 from config import config
 from ml2016.adaboost import Adaboost
+from ml2016.logistic_reg import LogisticReg
+from ml2016.nneighbors import NNeighbors
 from ml2016.preprocess import load_data, extract_xy, remove_cols
 from ml2016.submit import save_submission
 
@@ -95,6 +97,15 @@ def choose_model(args):
 
     params : dict[str, T]
         Model parameters to pass to `mdl.tune`
+
+    Raises
+    ------
+    ValueError
+        If args.algorithm is not in `ALGORITHM_CHOICES`
+
+    NotImplementedError
+        If args.algorithm recognized, but has not yet be handled
+        herein.
     """
     params = {'n_jobs': args.jobs,
               'verbose': 100 if args.verbose else 0}
@@ -104,6 +115,12 @@ def choose_model(args):
     elif args.algorithm == 'adaboost':
         mdl = Adaboost()
         params.update(config.params.adaboost)
+    elif args.algorithm == 'knn':
+        mdl = NNeighbors()
+        params.update(config.params.knn)
+    elif args.algorithm == 'logit':
+        mdl = LogisticReg()
+        params.update(config.params.logit)
     else:
         raise NotImplementedError
     return mdl, params

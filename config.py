@@ -12,6 +12,10 @@ adaboost = {'max_depth': 1,
             'n_estimators': [1, 2],
             'learning_rate': 1.0}
 
+knn = {'n_neighbors': 1}
+
+logit = {'C': 1}
+
 # Config.paths.*
 training_data = 'data/data.csv'
 test_data = 'data/quiz.csv'
@@ -27,14 +31,12 @@ _PATHS = {'training_data': training_data, 'test_data': test_data,
           'out_folder': out_folder, 'cache_folder': cache_folder,
           'feat_types': feat_types}
 
-_path_names = ['training_data', 'test_data', 'out_folder', 'cache_folder',
-               'feat_types']
-Paths = namedtuple('Paths', _path_names)
+Paths = namedtuple('Paths', sorted(_PATHS))
 _p = Paths(**_PATHS)
 
-_PARAMS = {'adaboost': adaboost}
+_PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit}
 
-Params = namedtuple('Params', ['adaboost'])
+Params = namedtuple('Params', sorted(_PARAMS))
 _params = Params(**_PARAMS)
 
 Config = namedtuple('Config', ['paths', 'params'])
