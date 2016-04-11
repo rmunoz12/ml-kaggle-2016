@@ -28,8 +28,7 @@ def get_args():
 
 def main():
     args = get_args()
-    T, col_names = load_data(config.paths.test_data, config.paths.feat_types,
-                             config.paths.cache_folder)
+    T, col_names = load_data(config.paths.test_data, config.paths.cache_folder)
     logger.info('predicting a constant value: %d' % args.value)
     pred = predict_const(T, args.value)
     save_submission(pred, config.paths.out_folder + args.filename)

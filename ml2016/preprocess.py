@@ -6,186 +6,295 @@ Features described in field_types.txt.
 """
 
 from __future__ import print_function
-import csv
 import json
 import logging
 import os
-from copy import copy
 
-import numpy as np
+import pandas as pd
 from scipy.io import mmread, mmwrite
 from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction import DictVectorizer
+from sklearn.preprocessing import StandardScaler
 
 logger = logging.getLogger(__name__)
 
 
-def load_feat_types(path):
+class Preprocessor(object):
     """
-    Load feature type information.
+    Preprocessing class that ensures application of the same transformations
+    to both training and test data sets.
 
     Parameters
     ----------
-    path : str
-        Path to field_types.txt
+    train_data_path : str
+            Filepath to training data.
 
-    Returns
-    -------
-    feature_types : dict[str, list[str]]
-        Maps feature names to their raw types from field_types.txt.
-    """
-    with open(path, 'rb') as fi:
-        feat_types = {}
-        for line in fi:
-            k, v = line.split(' ', 1)
-            v = v.split()
-            if len(v) > 1:
-                v = [t[1:] for t in v]
-            feat_types[k] = v
-    return feat_types
-
-
-def encode_dataset(data, feat_types):
-    """
-    Parameters
-    ----------
-    data : dict[str, dict[str, str]]
-        raw data read from input file with csv.DictReader
-
-    feat_types : dict[str, list[str]]
-        The result of load_feat_types().
-
-    Returns
-    -------
-    new_data : csr_matrix
-        Data with categorical variables encoded using one-hot-encoding.
-
-    col_names : dict[str, int]
-        Maps names of columns in new_data to column indexes. This dictionary
-        is invertible.
-    """
-    logger.info('splitting numeric and factor features')
-    numeric_data, factor_data = {}, {}
-    for id, row in data.items():
-        numerics, factors = {}, {}
-        for f, v in row.items():
-            if f == 'label' or feat_types[f][0] == 'numeric':
-                numerics[f] = np.float64(v)
-            else:
-                factors[f] = v
-        numeric_data[id], factor_data[id] = numerics, factors
-
-    logger.info('encoding factor features')
-    factor_data = [factor_data[k] for k in sorted(factor_data)]
-
-    typ_dicts = []
-    for f, typ in feat_types.items():
-        if len(typ) > 1:
-            typ_dicts.extend([{f: t} for t in typ])
-    dv = DictVectorizer()
-    dv.fit(typ_dicts)
-    x = dv.transform(factor_data)
-
-    logger.info('combining numeric and encoded factor features')
-    new_data = []
-    num_col_names = sorted(numeric_data[1].keys())
-    num_col_idx = {}
-    for i in range(len(num_col_names)):
-        num_col_idx[num_col_names[i]] = i
-
-    for k in sorted(numeric_data):
-        row = numeric_data[k]
-        new_row = []
-        for f in sorted(row):
-            v = row[f]
-            new_row.append(v)
-        new_data.append(new_row)
-    new_data = csr_matrix(new_data)
-    new_data = hstack((new_data, x), format='csr')
-
-    factor_col_idx = \
-        {k: val + len(num_col_idx) for k, val in dv.vocabulary_.items()}
-
-    col_names = num_col_idx
-    col_names.update(factor_col_idx)
-    return new_data, col_names
-
-
-def _fresh_load_data(data_path, cache_folder, feat_types):
-    """
-    Loads the training or test data, assumed to contain a header, encodes all
-    categorical features (using one-hot-encoding), and caches the result.
-
-    Parameters
-    ----------
-    data_path : str
-        Filepath to training/test case data.
+    test_data_path : str
+            Filepath to test data.
 
     cache_folder : str
         Path to store encoded data sets.
 
+    feat_types_path : str
+        Path to field_types.txt.
+
+    ignore_cols : None | list[str]
+            Column names to ignore.
+
+    Attributes
+    ----------
     feat_types : dict[str, list[str]]
-        The result of load_feat_types().
+            Maps feature names to their raw types from field_types.txt.
 
-    Returns
-    -------
-    data : csr_matrix
-        Sparse data matrix, with id increasing with row number.
+    num_mdl : StandardScaler
+        Numeric model used to apply same scaling to training and test data. Set
+        only after loading of training data.
 
-    col_names : dict[str, int]
-        Maps names of columns in new_data to column indexes. This dictionary
-        is invertible.
+    factor_mdl : DictVectorizer
+        Factor model used to apply same encoding to training and test data.
     """
-    data = {}
-    id = 1
-    fi = open(data_path, 'rb')
-    if not os.path.exists(cache_folder):
-        os.makedirs(cache_folder)
-    reader = csv.DictReader(fi)
-    for row in reader:
-        data[id] = row
-        id += 1
-    fi.close()
+    def __init__(self, train_data_path, test_data_path, cache_folder,
+                 feat_types_path, ignore_cols=None):
+        self.train_data_path = train_data_path
+        self.test_data_path = test_data_path
+        self.cache_folder = cache_folder
+        self.ignore_cols = ignore_cols
+        self.num_mdl = None
+        self.factor_mdl = None
 
-    data, col_names = encode_dataset(data, feat_types)
+        self.set_feat_types(feat_types_path)
+        self.set_factor_mdl()
 
-    orig_filename = os.path.split(data_path)[1]
-    orig_filename = orig_filename.rsplit('.', 1)[0]
-    matrix_cache_path = cache_folder + 'encoded_' + \
-                        orig_filename + '.mtx'
-    names_cache_path = cache_folder + 'encoded_col_names_' + \
-                       orig_filename + '.json'
-    logger.info('caching encoded data matrix to: %s' % matrix_cache_path)
-    mmwrite(matrix_cache_path, data)
-    logger.info('caching encoded data matrix column names to: %s' %
-                names_cache_path)
-    with open(names_cache_path, 'wb') as fo:
-        json.dump(col_names, fo)
+    def set_feat_types(self, path):
+        """
+        Load feature type information.
 
-    return data, col_names
+        Parameters
+        ----------
+        path : str
+            Path to field_types.txt
+        """
+        logger.info('loading feature type information')
+        with open(path, 'rb') as fi:
+            self.feat_types = {}
+            for line in fi:
+                k, v = line.split(' ', 1)
+                v = v.split()
+                if len(v) > 1:
+                    v = [t[1:] for t in v]
+                self.feat_types[k] = v
+
+    def set_factor_mdl(self):
+        """Fit a factor model to all possible factor values"""
+        logger.info('setting factor model')
+        typ_dicts = []
+        for f, typ in self.feat_types.items():
+            if len(typ) > 1 and f not in self.ignore_cols:
+                typ_dicts.extend([{f: t} for t in typ])
+        self.factor_mdl = DictVectorizer()
+        self.factor_mdl.fit(typ_dicts)
+
+    def set_num_mdl(self, numeric_data):
+        """Scale and center numerical data columns"""
+        logger.info('setting numerical model')
+        self.num_mdl = StandardScaler(copy=False)
+        self.num_mdl.fit(numeric_data)
+
+    def scale_dataset(self, numeric_data):
+        """
+        Scale and center numerical features
+
+        Also sets 'self.num_mdl`.
+
+        Parameters
+        ----------
+        numeric_data : pd.DataFrame
+            raw numeric data read from input file with pd.read_csv
+
+        Returns
+        -------
+        new_data : csr_matrix
+            Data with processed numeric variables.
+
+        col_names : dict[str, int]
+            Maps names of columns in new_data to column indexes. This dictionary
+            is invertible.
+        """
+        logger.info('scaling numerical features')
+        col_names = numeric_data.columns
+        new_data = self.num_mdl.transform(numeric_data)
+        return new_data, col_names
+
+    def encode_dataset(self, factor_data):
+        """
+        Parameters
+        ----------
+        factor_data : pd.DataFrame
+            raw factor data read from input file with pd.read_csv
+
+        Returns
+        -------
+        new_data : csr_matrix
+            Data with categorical variables encoded using one-hot-encoding.
+
+        col_names : dict[str, int]
+            Maps names of columns in new_data to column indexes. This dictionary
+            is invertible.
+        """
+        logger.info('encoding factor features')
+        new_data = self.factor_mdl.transform(factor_data.to_dict('records'))
+        col_names = {k: val for k, val in self.factor_mdl.vocabulary_.items()}
+        return new_data, col_names
+
+    def _load_data(self, path):
+        """
+        Load and split data set
+
+        Parameters
+        ----------
+        path : str
+            Dataset filepath.
+
+        Returns
+        -------
+        numeric_data, factor_data, label_data : pd.DataFrame | None
+            Dataset split out into column type. `label_data` is returned as
+            None if there is no column named 'label'.
+        """
+        with open(path, 'rb') as fi:
+            data = pd.read_csv(fi)
+        if self.ignore_cols:
+            for name in self.ignore_cols:
+                del data[name]
+        data.index = range(1, data.index[-1] + 2)  # ID name index from 1 not 0
+
+        logger.info('splitting numeric and factor features')
+
+        labelled = False
+        numeric_col_names, factor_col_names = [], []
+        for column in data:
+            if column == 'label':
+                labelled = True
+            elif self.feat_types[column][0] == 'numeric':
+                numeric_col_names.append(column)
+            else:
+                factor_col_names.append(column)
+
+        numeric_data = data[numeric_col_names]
+        factor_data = data[factor_col_names]
+        label_data = None
+        if labelled:
+            label_data = data['label'].to_frame()
+
+        return numeric_data, factor_data, label_data
+
+    def _process_data(self, numeric_data, factor_data, label_data=None):
+        """
+        Apply preprocessing.
+
+        Parameters
+        ----------
+        numeric_data, factor_data, label_data : pd.DataFrame | None
+            Dataframes for each feature type. `labe_data` can be None if there
+            was no corresponding column.
+
+        Returns
+        -------
+        data : csr_matrix
+            Data matrix where numerical, factor, and (if present) label columns
+            have been horizontally stacked.
+
+        col_names : dict[str, int]
+            Maps names of columns in `data` to column indexes.
+        """
+        numeric_data, numeric_col_names = self.scale_dataset(numeric_data)
+        factor_data, factor_col_names = self.encode_dataset(factor_data)
+
+        logger.info('combining numeric and encoded factor features')
+        data = hstack((numeric_data, factor_data), format='csr')
+        col_names = \
+            {numeric_col_names[i]: i for i in range(len(numeric_col_names))}
+        factor_col_idx = \
+            {k: val + len(col_names) for k, val in factor_col_names.items()}
+        col_names.update(factor_col_idx)
+        if label_data is not None:
+            data = hstack((data, label_data), format='csr')
+            col_names.update({'label': len(col_names)})
+
+        return data, col_names
+
+    def _cache_data(self, orig_path, data, col_names):
+        """
+        Cache data to disk.
+
+        Parameters
+        ----------
+        orig_path : str
+            Filepath to input data.
+
+        data : csr_matrix
+            Processed data.
+
+        col_names : dict[str, int]
+            Corresponding column names for `data`.
+        """
+        orig_filename = os.path.split(orig_path)[1]
+        orig_filename = orig_filename.rsplit('.', 1)[0]
+        matrix_cache_path = self.cache_folder + 'encoded_' + \
+                            orig_filename + '.mtx'
+        names_cache_path = self.cache_folder + 'encoded_col_names_' + \
+                           orig_filename + '.json'
+        logger.info('caching encoded data matrix to: %s' % matrix_cache_path)
+        if not os.path.exists(self.cache_folder):
+            os.makedirs(self.cache_folder)
+        with open(matrix_cache_path, 'wb') as fo:
+            mmwrite(fo, data)
+        logger.info('caching encoded data matrix column names to: %s' %
+                    names_cache_path)
+        with open(names_cache_path, 'wb') as fo:
+            json.dump(col_names, fo)
+
+    def fresh_load_data(self):
+        """
+        Loads the training and test data, assumed to contain headers, applies
+        preprocessing and caches the result.
+
+        Returns
+        -------
+        tuple[csr_matrix, dict[str, int]]
+            A two-value tuple containing training and then test data, along with
+            associated column names. Thus, each value in this tuple is a tuple:
+
+                Xs, Xt : csr_matrix
+                    Sparse data matrix, with id increasing with row number.
+
+                col_names_s, col_names_t : dict[str, int]
+                    Maps names of columns in Xs / Xt to column indexes.
+                    These dictionaries are invertible.
+        """
+        nd, fd, ld = self._load_data(self.train_data_path)
+        self.set_num_mdl(nd)
+        Xs, col_names_s = self._process_data(nd, fd, ld)
+        self._cache_data(self.train_data_path, Xs, col_names_s)
+
+        nd, fd, _ = self._load_data(self.train_data_path)
+        Xt, col_names_t = self._process_data(nd, fd)
+        self._cache_data(self.test_data_path, Xt, col_names_t)
+        return (Xs, col_names_s), (Xt, col_names_t)
 
 
-def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
+def load_data(data_path, cache_folder):
     """
-    By default, loads the (encoded) training or test data from cache, otherwise,
-    loads and encodes the data, assumed to contain a header, and caches the
-    result.
+    Loads the (encoded) training or test data from cache.
 
     Parameters
     ----------
     data_path : str
         Filepath to training/test case data. Expects this value to be the
-        original file path even when use_cache is True.
-
-    feat_types_path : str
-        Path to field_types.txt.
+        original file path.
 
     cache_folder : str
         Path to store/load encoded data sets.
-
-    use_cache : bool
-        When true, attempts to load the cached data at a location determined
-        based on the original `path`.
 
     Returns
     -------
@@ -202,18 +311,16 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
                       'encoded_' + orig_filename + '.mtx'
     names_cache_path = cache_folder + \
                         'encoded_col_names_' + orig_filename + '.json'
-    if not use_cache or not os.path.exists(data_cache_path):
-        feat_types = load_feat_types(feat_types_path)
-        logger.info('performing a fresh load of %s'
-                    % os.path.split(data_path)[1])
-        return _fresh_load_data(data_path, cache_folder, feat_types)
-    else:
-        logger.info('using cached version of %s' % os.path.split(data_path)[1])
-        data = mmread(data_cache_path)
-        data = data.tocsr()
-        with open(names_cache_path, 'rb') as fi:
-            col_names = json.load(fi)
-        return data, col_names
+    if not os.path.exists(data_cache_path):
+        logger.error("Cache file does not exist, "
+                     "use `run_preprocessing.py` first")
+        raise ValueError(data_cache_path)
+    logger.info('using cached version of %s' % os.path.split(data_path)[1])
+    data = mmread(data_cache_path)
+    data = data.tocsr()
+    with open(names_cache_path, 'rb') as fi:
+        col_names = json.load(fi)
+    return data, col_names
 
 
 def drop_feature(data, col_names, feature_name):
@@ -238,7 +345,10 @@ def drop_feature(data, col_names, feature_name):
         Map of column names to column indices in `X`.
     """
     f_idx = col_names[feature_name]
-    X = hstack((data[:, :f_idx], data[:, (f_idx + 1):]), format='csr')
+    if f_idx != data.shape[1] - 1:
+        X = hstack((data[:, :f_idx], data[:, (f_idx + 1):]), format='csr')
+    else:
+        X = data[:, :f_idx]
 
     col_names_X = {}
     for k, v in col_names.items():
@@ -282,11 +392,3 @@ def extract_xy(data, col_names, label_key="label"):
 
     X, col_names_X = drop_feature(data, col_names, label_key)
     return X, Y, col_names_X
-
-
-def remove_cols(X, col_names):
-    names = copy(col_names)
-    for name in names:
-        if name[:2] == '23' or name[:2] == '58':
-            X, col_names = drop_feature(X, col_names, name)
-    return X, col_names

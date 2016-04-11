@@ -28,7 +28,6 @@ def get_args():
 def main():
     args = get_args()
     S, col_names_S = load_data(config.paths.training_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
 

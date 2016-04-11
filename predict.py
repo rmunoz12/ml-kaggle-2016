@@ -7,7 +7,7 @@ from config import config
 from ml2016.adaboost import Adaboost
 from ml2016.logistic_reg import LogisticReg
 from ml2016.nneighbors import NNeighbors
-from ml2016.preprocess import load_data, extract_xy, remove_cols
+from ml2016.preprocess import load_data, extract_xy
 from ml2016.submit import save_submission
 
 logging.basicConfig(level=logging.INFO)
@@ -32,9 +32,6 @@ def get_args():
     p.add_argument('-j', '--jobs',
                    help='number of cv processes (default: %(default)d)',
                    type=int, default=1)
-    p.add_argument('--ignore-high-d-feats',
-                   help='ignores features 23 and 58',
-                   action='store_true')
     p.add_argument('--verbose',
                    help='grid search verbosity level',
                    action='store_true')
@@ -107,24 +104,16 @@ def main():
     mdl, params = choose_model(args)
 
     S, col_names_S = load_data(config.paths.training_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
-
-    if args.ignore_high_d_feats:
-        Xs, col_names_S = remove_cols(Xs, col_names_S)
 
     mdl.tune(Xs, Ys, **params)
 
     logger.info("Training score: %0.5f" % mdl.score(Xs, Ys))
 
     T, col_names_T = load_data(config.paths.test_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xt = T
-
-    if args.ignore_high_d_feats:
-        Xt, col_names_T = remove_cols(Xt, col_names_T)
 
     logger.info('predicting test set labels')
     test_pred = mdl.predict(Xt)
