@@ -38,7 +38,7 @@ class Preprocessor(object):
     feat_types_path : str
         Path to field_types.txt.
 
-    ignore_cols : None | list[str]
+    ignore_cols : list[str]
             Column names to ignore.
 
     Attributes
@@ -54,7 +54,7 @@ class Preprocessor(object):
         Factor model used to apply same encoding to training and test data.
     """
     def __init__(self, train_data_path, test_data_path, cache_folder,
-                 feat_types_path, ignore_cols=None):
+                 feat_types_path, ignore_cols=list()):
         self.train_data_path = train_data_path
         self.test_data_path = test_data_path
         self.cache_folder = cache_folder

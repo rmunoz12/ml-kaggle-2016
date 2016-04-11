@@ -19,11 +19,10 @@ def get_args():
 
 def main():
     args = get_args()
-    ignore_cols = None
+    ignore_cols = list()
     if args.ignore_high_d_feats:
         ignore_cols = ['23', '58']
         logger.info('ignoring columns: %s' % str(ignore_cols))
-
     preproc = Preprocessor(config.paths.training_data, config.paths.test_data,
                            config.paths.cache_folder, config.paths.feat_types,
                            ignore_cols)
