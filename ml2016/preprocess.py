@@ -277,7 +277,7 @@ class Preprocessor(object):
         Xs, col_names_s = self._process_data(nd, fd, ld)
         self._cache_data(self.train_data_path, Xs, col_names_s)
 
-        nd, fd, _ = self._load_data(self.train_data_path)
+        nd, fd, _ = self._load_data(self.test_data_path)
         Xt, col_names_t = self._process_data(nd, fd)
         self._cache_data(self.test_data_path, Xt, col_names_t)
         return (Xs, col_names_s), (Xt, col_names_t)
