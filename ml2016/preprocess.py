@@ -6,13 +6,12 @@ Features described in field_types.txt.
 """
 
 from __future__ import print_function
-import csv
 import json
 import logging
 import os
-from copy import copy
 
 import numpy as np
+import pandas as pd
 from scipy.io import mmread, mmwrite
 from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction import DictVectorizer
@@ -45,15 +44,19 @@ def load_feat_types(path):
     return feat_types
 
 
-def encode_dataset(data, feat_types):
+def encode_dataset(data, feat_types, ignore_cols=None):
     """
     Parameters
     ----------
-    data : dict[str, dict[str, str]]
-        raw data read from input file with csv.DictReader
+    data : pd.DataFrame
+        raw data read from input file with pd.read_csv
 
     feat_types : dict[str, list[str]]
         The result of load_feat_types().
+
+    ignore_cols : None | list[str]
+        Column names to ignore when fitting feat_types. Numeric columns should
+        have already been ignored.
 
     Returns
     -------
@@ -65,53 +68,41 @@ def encode_dataset(data, feat_types):
         is invertible.
     """
     logger.info('splitting numeric and factor features')
-    numeric_data, factor_data = {}, {}
-    for id, row in data.items():
-        numerics, factors = {}, {}
-        for f, v in row.items():
-            if f == 'label' or feat_types[f][0] == 'numeric':
-                numerics[f] = np.float64(v)
-            else:
-                factors[f] = v
-        numeric_data[id], factor_data[id] = numerics, factors
+
+    numeric_col_names, factor_col_names = [], []
+    for column in data:
+        if column == 'label' or feat_types[column][0] == 'numeric':
+            numeric_col_names.append(column)
+        else:
+            factor_col_names.append(column)
+
+    numeric_data = data[numeric_col_names]
+    factor_data = data[factor_col_names]
 
     logger.info('encoding factor features')
-    factor_data = [factor_data[k] for k in sorted(factor_data)]
 
     typ_dicts = []
     for f, typ in feat_types.items():
-        if len(typ) > 1:
+        if len(typ) > 1 and f not in ignore_cols:
             typ_dicts.extend([{f: t} for t in typ])
     dv = DictVectorizer()
     dv.fit(typ_dicts)
-    x = dv.transform(factor_data)
+    x = dv.transform(factor_data.to_dict('records'))
 
     logger.info('combining numeric and encoded factor features')
-    new_data = []
-    num_col_names = sorted(numeric_data[1].keys())
-    num_col_idx = {}
-    for i in range(len(num_col_names)):
-        num_col_idx[num_col_names[i]] = i
 
-    for k in sorted(numeric_data):
-        row = numeric_data[k]
-        new_row = []
-        for f in sorted(row):
-            v = row[f]
-            new_row.append(v)
-        new_data.append(new_row)
-    new_data = csr_matrix(new_data)
+    new_data = csr_matrix(numeric_data.as_matrix())
     new_data = hstack((new_data, x), format='csr')
 
+    col_names = {numeric_col_names[i]: i for i in range(len(numeric_col_names))}
     factor_col_idx = \
-        {k: val + len(num_col_idx) for k, val in dv.vocabulary_.items()}
-
-    col_names = num_col_idx
+        {k: val + len(col_names) for k, val in dv.vocabulary_.items()}
     col_names.update(factor_col_idx)
+
     return new_data, col_names
 
 
-def _fresh_load_data(data_path, cache_folder, feat_types):
+def _fresh_load_data(data_path, cache_folder, feat_types, ignore_cols=None):
     """
     Loads the training or test data, assumed to contain a header, encodes all
     categorical features (using one-hot-encoding), and caches the result.
@@ -127,6 +118,9 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
     feat_types : dict[str, list[str]]
         The result of load_feat_types().
 
+    ignore_cols : None | list[str]
+        Column names to ignore.
+
     Returns
     -------
     data : csr_matrix
@@ -136,18 +130,14 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
         Maps names of columns in new_data to column indexes. This dictionary
         is invertible.
     """
-    data = {}
-    id = 1
-    fi = open(data_path, 'rb')
-    if not os.path.exists(cache_folder):
-        os.makedirs(cache_folder)
-    reader = csv.DictReader(fi)
-    for row in reader:
-        data[id] = row
-        id += 1
-    fi.close()
+    with open(data_path, 'rb') as fi:
+        data = pd.read_csv(fi)
+    if ignore_cols:
+        for name in ignore_cols:
+            del data[name]
+    data.index = range(1, data.index[-1] + 2)  # ID name index from 1 not 0
 
-    data, col_names = encode_dataset(data, feat_types)
+    data, col_names = encode_dataset(data, feat_types, ignore_cols)
 
     orig_filename = os.path.split(data_path)[1]
     orig_filename = orig_filename.rsplit('.', 1)[0]
@@ -165,7 +155,8 @@ def _fresh_load_data(data_path, cache_folder, feat_types):
     return data, col_names
 
 
-def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
+def load_data(data_path, feat_types_path, cache_folder, use_cache=True,
+              ignore_cols=None):
     """
     By default, loads the (encoded) training or test data from cache, otherwise,
     loads and encodes the data, assumed to contain a header, and caches the
@@ -187,6 +178,10 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
         When true, attempts to load the cached data at a location determined
         based on the original `path`.
 
+    ignore_cols : None | list[str]
+        Column names to ignore. This only has an effect when the data is
+        loaded from the original files and not from cache.
+
     Returns
     -------
     data : csr_matrix
@@ -206,7 +201,8 @@ def load_data(data_path, feat_types_path, cache_folder, use_cache=True):
         feat_types = load_feat_types(feat_types_path)
         logger.info('performing a fresh load of %s'
                     % os.path.split(data_path)[1])
-        return _fresh_load_data(data_path, cache_folder, feat_types)
+        return _fresh_load_data(data_path, cache_folder, feat_types,
+                                ignore_cols)
     else:
         logger.info('using cached version of %s' % os.path.split(data_path)[1])
         data = mmread(data_cache_path)
@@ -282,11 +278,3 @@ def extract_xy(data, col_names, label_key="label"):
 
     X, col_names_X = drop_feature(data, col_names, label_key)
     return X, Y, col_names_X
-
-
-def remove_cols(X, col_names):
-    names = copy(col_names)
-    for name in names:
-        if name[:2] == '23' or name[:2] == '58':
-            X, col_names = drop_feature(X, col_names, name)
-    return X, col_names
