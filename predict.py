@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 
 from config import config
 from ml2016.adaboost import Adaboost
+from ml2016.pca_knn import PrinCompKNN
 from ml2016.logistic_reg import LogisticReg
 from ml2016.nneighbors import NNeighbors
 from ml2016.preprocess import load_data, extract_xy
@@ -14,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-ALGORITHM_CHOICES = ['adaboost', 'knn', 'logit']
+ALGORITHM_CHOICES = ['adaboost', 'knn', 'logit', 'pca-knn']
 
 
 def get_args():
@@ -88,6 +89,9 @@ def choose_model(args):
     elif args.algorithm == 'logit':
         mdl = LogisticReg()
         params.update(config.params.logit)
+    elif args.algorithm == 'pca-knn':
+        mdl = PrinCompKNN()
+        params.update(config.params.pca_knn)
     else:
         raise NotImplementedError
     return mdl, params
