@@ -19,6 +19,12 @@ class NNeighbors(BaseClassifier):
     ----------
     clf : KNeighborsClassifier | None
         Classifier set only after calling `fit` or `tune`.
+
+    Notes
+    -----
+    This classifier convert sparse feature matrices to dense matrices for faster
+    training algorithm use and lower memory footprint, since using spare
+    matrices will force the use of a brute force search by scikit-learn.
     """
     def __init__(self):
         super(NNeighbors, self).__init__()
@@ -47,6 +53,7 @@ class NNeighbors(BaseClassifier):
         """
         logger.info("Training KNN <n_neighbors=%d>" % n_neighbors)
         self.clf = KNeighborsClassifier(n_neighbors=n_neighbors)
+        X = X.toarray()
         Y = Y.toarray().ravel()
         self.clf.fit(X, Y)
         score_train = self.clf.score(X, Y)
@@ -91,7 +98,7 @@ class NNeighbors(BaseClassifier):
         start_time = time()
 
         param_grid = [{'n_neighbors': n_neighbors}]
-
+        X = X.toarray()
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
 
@@ -104,4 +111,18 @@ class NNeighbors(BaseClassifier):
         logger.info("--- %0.3f minutes ---" % ((time() - start_time) / 60))
         return self.clf.best_params_
 
+    def score(self, X, Y):
+        """
+        Use `self.clf` to score predictions on labels `Y`.
 
+        Need to convert to dense 'X' array for KNN.
+        """
+        return self.clf.score(X.toarray(), Y.toarray().ravel())
+
+    def predict(self, X):
+        """
+        Use `self.clf` to predict on the set `X`.
+
+        Need to convert to dense 'X' array for KNN.
+        """
+        return self.clf.predict(X.toarray())
