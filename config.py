@@ -16,6 +16,9 @@ knn = {'n_neighbors': [1, 3, 5]}
 
 logit = {'C': [0.7, 1, 1.3]}
 
+pca_knn = {'n_components': [5, 10],
+           'n_neighbors': [1, 3]}
+
 # config.paths.*
 training_data = 'data/data.csv'
 test_data = 'data/quiz.csv'
@@ -34,7 +37,7 @@ _PATHS = {'training_data': training_data, 'test_data': test_data,
 Paths = namedtuple('Paths', sorted(_PATHS))
 _p = Paths(**_PATHS)
 
-_PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit}
+_PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit, 'pca_knn': pca_knn}
 
 Params = namedtuple('Params', sorted(_PARAMS))
 _params = Params(**_PARAMS)
