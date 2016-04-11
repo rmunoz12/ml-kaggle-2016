@@ -104,7 +104,6 @@ def main():
     mdl, params = choose_model(args)
 
     S, col_names_S = load_data(config.paths.training_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
 
@@ -113,7 +112,6 @@ def main():
     logger.info("Training score: %0.5f" % mdl.score(Xs, Ys))
 
     T, col_names_T = load_data(config.paths.test_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xt = T
 

@@ -31,14 +31,12 @@ def get_args():
 def main():
     args = get_args()
     S, col_names_S = load_data(config.paths.training_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     Xs, Ys, col_names_S = extract_xy(S, col_names_S)
 
     frac_positive = fraction_positive(Ys)
 
     T, col_names_T = load_data(config.paths.test_data,
-                               config.paths.feat_types,
                                config.paths.cache_folder)
     logger.info('predicting with probability equal to avg')
     pred = predict_on_avg(T, frac_positive)
