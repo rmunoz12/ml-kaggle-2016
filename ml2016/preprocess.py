@@ -41,6 +41,9 @@ class Preprocessor(object):
     ignore_cols : list[str]
             Column names to ignore.
 
+    scale : bool
+        Whether to apply numerical centering & scaling.
+
     Attributes
     ----------
     feat_types : dict[str, list[str]]
@@ -54,13 +57,14 @@ class Preprocessor(object):
         Factor model used to apply same encoding to training and test data.
     """
     def __init__(self, train_data_path, test_data_path, cache_folder,
-                 feat_types_path, ignore_cols=list()):
+                 feat_types_path, ignore_cols=list(), scale=False):
         self.train_data_path = train_data_path
         self.test_data_path = test_data_path
         self.cache_folder = cache_folder
         self.ignore_cols = ignore_cols
         self.num_mdl = None
         self.factor_mdl = None
+        self.scale = scale
 
         self.set_feat_types(feat_types_path)
         self.set_factor_mdl()
@@ -122,7 +126,10 @@ class Preprocessor(object):
         """
         logger.info('scaling numerical features')
         col_names = numeric_data.columns
-        new_data = self.num_mdl.transform(numeric_data)
+        if self.scale:
+            new_data = self.num_mdl.transform(numeric_data)
+        else:
+            new_data = numeric_data
         return new_data, col_names
 
     def encode_dataset(self, factor_data):
