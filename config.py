@@ -16,8 +16,8 @@ knn = {'n_neighbors': [1, 3, 5]}
 
 logit = {'C': [0.7, 1, 1.3]}
 
-pca_knn = {'n_components': [5, 10],
-           'n_neighbors': [1, 3]}
+pca_knn = {'n_components': [50, 100, 200],
+           'n_neighbors': [1, 3, 5]}
 
 # config.paths.*
 training_data = 'data/data.csv'
