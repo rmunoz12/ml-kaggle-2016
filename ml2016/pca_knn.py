@@ -50,13 +50,13 @@ class PrinCompKNN(NNeighbors):
         score_train : float
             Score of the classifier on the training set.
         """
-        logger.info("Training PCA=KNN <n_components=%d, n_neighbors=%d>"
+        logger.info("Training PCA-KNN <n_components=%d, n_neighbors=%d>"
                     % (n_components, n_neighbors))
         X = X.toarray()
         Y = Y.toarray().ravel()
         self.clf = Pipeline(steps=[('pca', PCA()),
                                    ('knn', KNeighborsClassifier)])
-        self.clf.set_params(pca__n_components= n_components,
+        self.clf.set_params(pca__n_components=n_components,
                             knn__n_neighbors=n_neighbors)
         self.clf.fit(X, Y)
         score_train = self.clf.score(X, Y)
