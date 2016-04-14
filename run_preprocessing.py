@@ -16,6 +16,9 @@ def get_args():
     p.add_argument('--scale',
                    help='applies scaling to numerical features',
                    action='store_true')
+    p.add_argument('--pf',
+                   help='add degree of polynomial features (default: none)',
+                   type=int, default=None)
     args = p.parse_args()
     return args
 
@@ -30,7 +33,7 @@ def main():
         args.scale = False
     preproc = Preprocessor(config.paths.training_data, config.paths.test_data,
                            config.paths.cache_folder, config.paths.feat_types,
-                           ignore_cols, args.scale)
+                           ignore_cols, args.scale, args.pf)
     (Xs, _), (Xt, _) = preproc.fresh_load_data()
 
     logger.info('training data shape: %s' % str(Xs.shape))

@@ -14,7 +14,7 @@ import pandas as pd
 from scipy.io import mmread, mmwrite
 from scipy.sparse import csr_matrix, hstack
 from sklearn.feature_extraction import DictVectorizer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,9 @@ class Preprocessor(object):
     scale : bool
         Whether to apply numerical centering & scaling.
 
+    pf : int | None
+        Polynomial feature degree.
+
     Attributes
     ----------
     feat_types : dict[str, list[str]]
@@ -57,7 +60,7 @@ class Preprocessor(object):
         Factor model used to apply same encoding to training and test data.
     """
     def __init__(self, train_data_path, test_data_path, cache_folder,
-                 feat_types_path, ignore_cols=list(), scale=False):
+                 feat_types_path, ignore_cols=list(), scale=False, pf=None):
         self.train_data_path = train_data_path
         self.test_data_path = test_data_path
         self.cache_folder = cache_folder
@@ -65,6 +68,7 @@ class Preprocessor(object):
         self.num_mdl = None
         self.factor_mdl = None
         self.scale = scale
+        self.pf = pf
 
         self.set_feat_types(feat_types_path)
         self.set_factor_mdl()
@@ -224,6 +228,14 @@ class Preprocessor(object):
         factor_col_idx = \
             {k: val + len(col_names) for k, val in factor_col_names.items()}
         col_names.update(factor_col_idx)
+
+        if self.pf:
+            logger.info('Converting data to array...')
+            data = data.toarray()
+            logger.info('Adding polynomial features of degree: %d' % self.pf)
+            mdl = PolynomialFeatures(self.pf)
+            data = mdl.fit_transform(data)
+
         if label_data is not None:
             data = hstack((data, label_data), format='csr')
             col_names.update({'label': len(col_names)})

@@ -6,11 +6,15 @@ identifies the attribute of config where the variables will be stored. Or,
 alternatively, import classes at the end to roll your own.
 """
 
+from collections import namedtuple
+
+import numpy as np
+
 
 # config.params.*
-adaboost = {'max_depth': [1, 3],
-            'n_estimators': [1, 2, 4, 8, 16, 32],
-            'learning_rate': 1.0}
+adaboost = {'max_depth': 1,
+            'n_estimators': [32, 2048],
+            'learning_rate': 0.2}
 
 knn = {'n_neighbors': [1, 3, 5]}
 
@@ -18,6 +22,16 @@ logit = {'C': [0.7, 1, 1.3]}
 
 pca_knn = {'n_components': [50, 100, 200],
            'n_neighbors': [1, 3, 5]}
+
+pf_adaboost = {'degree': 2,
+            'max_depth': [1, 3],
+            'n_estimators': [1, 2, 4, 8, 16, 32],
+            'learning_rate': 1.0}
+
+svm = {'C': list(np.logspace(3, 5, num=3)),
+       'kernel': 'rbf',
+       'gamma': 'auto'}
+
 
 # config.paths.*
 training_data = 'data/data.csv'
@@ -28,8 +42,6 @@ feat_types = 'data/field_types.txt'
 
 # ----------------------------------------------------------------------------
 
-from collections import namedtuple
-
 _PATHS = {'training_data': training_data, 'test_data': test_data,
           'out_folder': out_folder, 'cache_folder': cache_folder,
           'feat_types': feat_types}
@@ -37,7 +49,8 @@ _PATHS = {'training_data': training_data, 'test_data': test_data,
 Paths = namedtuple('Paths', sorted(_PATHS))
 _p = Paths(**_PATHS)
 
-_PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit, 'pca_knn': pca_knn}
+_PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit,
+           'pca_knn': pca_knn, 'pf_adaboost': pf_adaboost, 'svm': svm}
 
 Params = namedtuple('Params', sorted(_PARAMS))
 _params = Params(**_PARAMS)
