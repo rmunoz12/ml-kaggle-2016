@@ -12,6 +12,7 @@ from ml2016.preprocess import load_data, extract_xy
 from ml2016.svm import SVM
 from ml2016.randomforest import RandomForest
 from ml2016.kmeans import Kmeans
+from ml2016.gmm import Gmm
 from ml2016.submit import save_submission
 
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 ALGORITHM_CHOICES = ['adaboost', 'knn', 'logit', 'pca-knn', 'pf-adaboost',
-                     'svm', 'randomforest', 'kmeans']
+                     'svm', 'randomforest', 'kmeans', 'gmm']
 
 
 def get_args():
@@ -108,6 +109,9 @@ def choose_model(args):
     elif args.algorithm == 'kmeans':
         mdl = Kmeans()
         params.update(config.params.kmeans)
+    elif args.algorithm == 'gmm':
+        mdl = Gmm()
+        params.update(config.params.gmm)
     else:
         raise NotImplementedError
     return mdl, params

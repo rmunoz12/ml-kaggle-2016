@@ -37,6 +37,10 @@ randomforest = {'n_estimators': [100],
 
 kmeans = {'n_clusters': [10]}
 
+gmm = {'n_components': [10],
+       'covariance_type': ['full'],
+       'tol': [1e-3]}
+
 # config.paths.*
 training_data = 'data/data.csv'
 test_data = 'data/quiz.csv'
@@ -55,7 +59,7 @@ _p = Paths(**_PATHS)
 
 _PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit,
            'pca_knn': pca_knn, 'pf_adaboost': pf_adaboost, 'svm': svm,
-           'randomforest': randomforest, 'kmeans': kmeans}
+           'randomforest': randomforest, 'kmeans': kmeans, 'gmm': gmm}
 
 Params = namedtuple('Params', sorted(_PARAMS))
 _params = Params(**_PARAMS)
