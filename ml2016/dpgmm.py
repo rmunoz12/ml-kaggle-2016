@@ -3,7 +3,7 @@ from time import time
 
 from sklearn.cross_validation import KFold
 from sklearn.grid_search import GridSearchCV
-from sklearn.mixture import GMM
+from sklearn.mixture import DPGMM
 
 from .util import BaseClassifier
 
@@ -11,21 +11,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class Gmm(BaseClassifier):
+class Dpgmm(BaseClassifier):
     """
-    Gaussian Mixture Model wrapper class.
+    Dirichlet Process Mixture Model wrapper class.
 
     Attributes
     ----------
-    clf : GMM | None
+    clf : DPGMM | None
         Classifier set only after calling `fit` or `tune`.
     """
     def __init__(self):
-        super(Gmm, self).__init__()
+        super(Dpgmm, self).__init__()
 
-    def fit(self, X, Y, n_components=10, covariance_type='full', tol = 1e-3):
+    def fit(self, X, Y, n_components=10, alpha=1.0, covariance_type='full', tol = 1e-3):
         """
-        Train a Gaussian Mixture Model classifier.
+        Train a Dirichlet Process Mixture Model classifier.
 
         Sets `self.clf` equal to the trained classifier.
 
@@ -40,6 +40,9 @@ class Gmm(BaseClassifier):
         n_components : int
             Number of clusters.
 
+        alpha : float
+            Concentration parameter.
+
         covariance_type : str
             How sparse the covariance should be.
 
@@ -51,18 +54,19 @@ class Gmm(BaseClassifier):
         score_train : float
             Score of the classifier on the training set.
         """
-        logger.info("Training Gaussian Mixture Model classifier <n_components=%s, covariance_type=%s, tol=%0.5f>"
-                    % (str(n_components), covariance_type, tol))
+        logger.info("Training Dirichlet Process Mixture Model classifier "
+                    "   <n_components=%s, alpha=%s, covariance_type=%s, tol=%0.5f>"
+                    % (str(n_components), str(alpha), covariance_type, tol))
 
         Y = Y.toarray().ravel()
 
-        self.clf = GMM(n_components=n_components, covariance_type=covariance_type, tol=tol)
+        self.clf = DPGMM(n_components=n_components, alpha=alpha, covariance_type=covariance_type, tol=tol)
         self.clf.fit(X, Y)
         score_train = self.clf.score(X, Y)
         logger.info("Training score: %0.5f" % score_train)
         return score_train
 
-    def tune(self, X, Y, n_components=10, covariance_type='full', tol=1e-3, n_jobs=1,
+    def tune(self, X, Y, n_components=10, alpha=1.0, covariance_type='full', tol=1e-3, n_jobs=1,
              verbose=0):
         """
         Report 10-fold cross-validation scores for tuning `X` on `Y` using
@@ -99,6 +103,8 @@ class Gmm(BaseClassifier):
         """
         if not isinstance(n_components, list):
             n_esimators = [n_components]
+        if not isinstance(alpha, list):
+            alpha = [alpha]
         if not isinstance(covariance_type, list):
             covariance_type = [covariance_type]
         if not isinstance(tol, list):
@@ -108,13 +114,14 @@ class Gmm(BaseClassifier):
         start_time = time()
 
         param_grid = [{'n_components': n_components},
+                      {'alpha': alpha},
                       {'covariance_type': covariance_type},
                       {'tol': tol}]
 
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)
 
-        mdl = GMM()
+        mdl = DPGMM()
         self.clf = GridSearchCV(mdl, param_grid=param_grid, n_jobs=n_jobs,
                                 cv=cv, verbose=verbose)
         self.clf.fit(X.toarray(), Y)

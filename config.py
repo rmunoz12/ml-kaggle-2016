@@ -35,11 +35,16 @@ svm = {'C': list(np.logspace(3, 5, num=3)),
 randomforest = {'n_estimators': [100],
                 'max_depth': [None]}
 
-kmeans = {'n_clusters': [10]}
+kmeans = {'n_clusters': [100]}
 
 gmm = {'n_components': [10],
        'covariance_type': ['full'],
        'tol': [1e-3]}
+
+dpgmm = {'n_components': [10],
+         'alpha': [1.0],
+         'covariance_type': ['full'],
+         'tol': [1e-3]}
 
 # config.paths.*
 training_data = 'data/data.csv'
@@ -59,7 +64,7 @@ _p = Paths(**_PATHS)
 
 _PARAMS = {'adaboost': adaboost, 'knn': knn, 'logit': logit,
            'pca_knn': pca_knn, 'pf_adaboost': pf_adaboost, 'svm': svm,
-           'randomforest': randomforest, 'kmeans': kmeans, 'gmm': gmm}
+           'randomforest': randomforest, 'kmeans': kmeans, 'gmm': gmm, 'dpgmm':dpgmm}
 
 Params = namedtuple('Params', sorted(_PARAMS))
 _params = Params(**_PARAMS)
