@@ -10,6 +10,8 @@ from ml2016.logistic_reg import LogisticReg
 from ml2016.nneighbors import NNeighbors
 from ml2016.preprocess import load_data, extract_xy
 from ml2016.svm import SVM
+from ml2016.randomforest import RandomForest
+from ml2016.kmeans import Kmeans
 from ml2016.submit import save_submission
 
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 ALGORITHM_CHOICES = ['adaboost', 'knn', 'logit', 'pca-knn', 'pf-adaboost',
-                     'svm']
+                     'svm', 'randomforest', 'kmeans']
 
 
 def get_args():
@@ -100,6 +102,12 @@ def choose_model(args):
     elif args.algorithm == 'svm':
         mdl = SVM()
         params.update(config.params.svm)
+    elif args.algorithm == 'randomforest':
+        mdl = RandomForest()
+        params.update(config.params.randomforest)
+    elif args.algorithm == 'kmeans':
+        mdl = Kmeans()
+        params.update(config.params.kmeans)
     else:
         raise NotImplementedError
     return mdl, params
