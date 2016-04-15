@@ -23,7 +23,7 @@ class RandomForest(BaseClassifier):
     def __init__(self):
         super(RandomForest, self).__init__()
 
-    def fit(self, X, Y, n_estimators=10, max_depth=None):
+    def fit(self, X, Y, n_estimators=10, max_depth=None, criterion='gini', max_features='auto'):
         """
         Train a Random Forest classifier.
 
@@ -43,24 +43,30 @@ class RandomForest(BaseClassifier):
         max_depth : int
             Max depth of tree.
 
+        criterion : str
+            'gini' or 'entropy'
+
+        max_features : int, float, str, None
+            Random subset of features to search for best split. "auto" is sqrt(n_features)
+
         Returns
         -------
         score_train : float
             Score of the classifier on the training set.
         """
-        logger.info("Training Random Forest <n_estimators=%s, max_depth=%s>"
-                    % (str(n_estimators), str(max_depth)))
+        logger.info("Training Random Forest <n_estimators=%s, max_depth=%s, criterion=%s, max_features=%s>"
+                    % (str(n_estimators), str(max_depth), criterion, str(max_features)))
 
         Y = Y.toarray().ravel()
 
-        self.clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth)
+        self.clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=68473)
         self.clf.fit(X, Y)
         score_train = self.clf.score(X, Y)
         logger.info("Training score: %0.5f" % score_train)
         return score_train
 
-    def tune(self, X, Y, n_estimators=10, max_depth=None, n_jobs=1,
-             verbose=0):
+    def tune(self, X, Y, n_estimators=10, max_depth=None, criterion='gini', max_features='auto',
+             n_jobs=1, verbose=0):
         """
         Report 10-fold cross-validation scores for tuning `X` on `Y` using
         a grid search over the hyper-parameters.
@@ -82,6 +88,12 @@ class RandomForest(BaseClassifier):
         max_depth : int
             Max depth of tree.
 
+        criterion : str
+            'gini' or 'entropy'
+
+        max_features : int, float, str, None
+            Random subset of features to search for best split. "auto" is sqrt(n_features)
+
         n_jobs : int
             Number of cores to use during cross-validation scoring. A value of -1
             will use all available cores.
@@ -98,12 +110,18 @@ class RandomForest(BaseClassifier):
             n_esimators = [n_estimators]
         if not isinstance(max_depth, list):
             max_depth = [max_depth]
+        if not isinstance(criterion, list):
+            criterion = [criterion]
+        if not isinstance(max_features, list):
+            max_features = [max_features]
 
         logger.info("Grid searching (10-fold cv)")
         start_time = time()
 
         param_grid = [{'n_estimators': n_estimators,
-                      'max_depth': max_depth}]
+                       'max_depth': max_depth,
+                       'criterion': criterion,
+                       'max_features': max_features}]
 
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)

@@ -33,7 +33,9 @@ svm = {'C': list(np.logspace(3, 5, num=3)),
        'gamma': 'auto'}
 
 randomforest = {'n_estimators': [100],
-                'max_depth': [None]}
+                'max_depth': [None],
+                'criterion': ['gini'],
+                'max_features': ['auto']}
 
 kmeans = {'n_clusters': [100]}
 
