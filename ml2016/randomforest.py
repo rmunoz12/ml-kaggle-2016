@@ -121,7 +121,8 @@ class RandomForest(BaseClassifier):
         param_grid = [{'n_estimators': n_estimators,
                        'max_depth': max_depth,
                        'criterion': criterion,
-                       'max_features': max_features}]
+                       'max_features': max_features,
+                       'random_state': [92309]}]
 
         Y = Y.toarray().ravel()
         cv = KFold(X.shape[0], n_folds=10, shuffle=True, random_state=92309)

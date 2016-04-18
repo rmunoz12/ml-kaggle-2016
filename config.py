@@ -32,10 +32,10 @@ svm = {'C': list(np.logspace(3, 5, num=3)),
        'kernel': 'rbf',
        'gamma': 'auto'}
 
-randomforest = {'n_estimators': [100],
+randomforest = {'n_estimators': [100, 200, 500],
                 'max_depth': [None],
                 'criterion': ['gini'],
-                'max_features': ['auto']}
+                'max_features': ['auto', 0.25, 0.5, 0.75]}
 
 kmeans = {'n_clusters': [100]}
 
