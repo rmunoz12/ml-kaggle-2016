@@ -107,7 +107,7 @@ class RandomForest(BaseClassifier):
             Contains the best parameter values found.
         """
         if not isinstance(n_estimators, list):
-            n_esimators = [n_estimators]
+            n_estimators = [n_estimators]
         if not isinstance(max_depth, list):
             max_depth = [max_depth]
         if not isinstance(criterion, list):
