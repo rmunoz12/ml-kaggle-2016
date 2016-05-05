@@ -10,6 +10,7 @@ import json
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 from scipy.io import mmread, mmwrite
 from scipy.sparse import csr_matrix, hstack
@@ -131,7 +132,21 @@ class Preprocessor(object):
         logger.info('scaling numerical features')
         col_names = numeric_data.columns
         if self.scale:
-            new_data = self.num_mdl.transform(numeric_data)
+            # only X59 and X60 are actually numeric features
+            # the remainder are actually factors {0, 1} or {0, 1, 2}
+            logger.info('numeric_data.shape: (%d, %d)' % numeric_data.shape)
+            Z = numeric_data.ix[:, ('59', '60')]
+            logger.info('Z.shape: (%d, %d)' % Z.shape)
+            Z = self.num_mdl.transform(Z)
+            logger.info('Z.shape: (%d, %d)' % Z.shape)
+            Z = pd.DataFrame(Z)
+            Z.index = np.arange(1, len(Z) + 1)
+            logger.info('Z.shape: (%d, %d)' % Z.shape)
+            numeric_data = numeric_data.drop(['59', '60'], 1)
+            logger.info('numeric_data.shape: (%d, %d)' % numeric_data.shape)
+            new_data = pd.concat([numeric_data, Z], axis=1, ignore_index=True)
+            logger.info('new_data.shape: (%d, %d)' % new_data.shape)
+            col_names = new_data.columns
         else:
             new_data = numeric_data
         return new_data, col_names
@@ -292,7 +307,12 @@ class Preprocessor(object):
                     These dictionaries are invertible.
         """
         nd, fd, ld = self._load_data(self.train_data_path)
-        self.set_num_mdl(nd)
+
+        # only X59 and X60 are actually numeric features
+        # the remainder are actually factors {0, 1} or {0, 1, 2}
+        Z = nd.ix[:, ('59', '60')]
+        self.set_num_mdl(Z)
+
         Xs, col_names_s = self._process_data(nd, fd, ld)
         self._cache_data(self.train_data_path, Xs, col_names_s)
 
