@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 
-from config import Config, Paths, cache_folder
+from config import Config, Paths, cache_folder, feat_types
 from ml2016.preprocess import Preprocessor
 from ml2016.preprocess import load_data, extract_xy
 from ml2016.randomforest import RandomForest
@@ -49,7 +49,7 @@ def main():
 
     path_dict = {'training_data': args.DATAFILE, 'test_data': args.QUIZFILE,
                  'out_folder': os.path.split(args.OUTPUTFILE)[0],
-                 'cache_folder': cache_folder, 'feat_types': 'field_types.txt'}
+                 'cache_folder': cache_folder, 'feat_types': feat_types}
     paths = Paths(**path_dict)
 
     PARAMS = {'adaboost': None, 'knn': None, 'logit': None,
