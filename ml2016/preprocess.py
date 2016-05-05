@@ -125,9 +125,8 @@ class Preprocessor(object):
         new_data : csr_matrix
             Data with processed numeric variables.
 
-        col_names : dict[str, int]
-            Maps names of columns in new_data to column indexes. This dictionary
-            is invertible.
+        col_names : pd.Index
+            Column labels
         """
         logger.info('scaling numerical features')
         col_names = numeric_data.columns
