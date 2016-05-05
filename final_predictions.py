@@ -7,6 +7,7 @@ python final_predictions.py DATAFILE QUIZFILE OUTPUTFILE
 from argparse import ArgumentParser
 import logging
 import os
+import sys
 
 from config import Config, Paths, cache_folder
 from ml2016.preprocess import Preprocessor
@@ -17,6 +18,8 @@ from ml2016.submit import save_submission
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
+
+logger.info(sys.path[0])
 
 mdl = RandomForest()
 
