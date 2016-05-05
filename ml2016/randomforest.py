@@ -23,7 +23,8 @@ class RandomForest(BaseClassifier):
     def __init__(self):
         super(RandomForest, self).__init__()
 
-    def fit(self, X, Y, n_estimators=10, max_depth=None, criterion='gini', max_features='auto'):
+    def fit(self, X, Y, n_estimators=10, max_depth=None, criterion='gini',
+            max_features='auto', n_jobs=1, verbose=True):
         """
         Train a Random Forest classifier.
 
@@ -59,7 +60,7 @@ class RandomForest(BaseClassifier):
 
         Y = Y.toarray().ravel()
 
-        self.clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=68473)
+        self.clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=92309)
         self.clf.fit(X, Y)
         score_train = self.clf.score(X, Y)
         logger.info("Training score: %0.5f" % score_train)
