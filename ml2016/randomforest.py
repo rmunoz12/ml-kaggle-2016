@@ -24,7 +24,7 @@ class RandomForest(BaseClassifier):
         super(RandomForest, self).__init__()
 
     def fit(self, X, Y, n_estimators=10, max_depth=None, criterion='gini',
-            max_features='auto', n_jobs=1, verbose=True):
+            max_features='auto'):
         """
         Train a Random Forest classifier.
 

@@ -80,6 +80,9 @@ class PrinCompKNN(NNeighbors):
         Y : csr_matrix
             n x 1 array of labels
 
+        n_components : int | None
+            Number of principal components to use. If none, uses all components.
+
         n_neighbors : int | list[int]
             Number of neighbors, k, or list of k values to try.
 

@@ -73,11 +73,8 @@ class Kmeans(BaseClassifier):
         Y : csr_matrix
             n x 1 array of labels
 
-        n_estimators : int
-            Number of voting trees.
-
-        max_depth : int
-            Max depth of tree.
+        n_clusters : int
+            Number of clusters.
 
         n_jobs : int
             Number of cores to use during cross-validation scoring. A value of -1
@@ -114,15 +111,11 @@ class Kmeans(BaseClassifier):
     def score(self, X, Y):
         """
         Use `self.clf` to score predictions on labels `Y`.
-
-        Need to convert to dense 'X' array for KNN.
         """
         return self.clf.score(X.toarray(), Y.toarray().ravel())
 
     def predict(self, X):
         """
         Use `self.clf` to predict on the set `X`.
-
-        Need to convert to dense 'X' array for KNN.
         """
         return self.clf.predict(X.toarray())
