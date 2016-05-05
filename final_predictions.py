@@ -19,8 +19,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 
-logger.info(sys.path[0])
-
 mdl = RandomForest()
 
 params = {'n_estimators': 50,
@@ -49,7 +47,8 @@ def main():
 
     path_dict = {'training_data': args.DATAFILE, 'test_data': args.QUIZFILE,
                  'out_folder': os.path.split(args.OUTPUTFILE)[0],
-                 'cache_folder': cache_folder, 'feat_types': feat_types}
+                 'cache_folder': cache_folder,
+                 'feat_types': os.path.join(sys.path[0], feat_types)}
     paths = Paths(**path_dict)
 
     PARAMS = {'adaboost': None, 'knn': None, 'logit': None,
