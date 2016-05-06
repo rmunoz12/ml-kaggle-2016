@@ -65,7 +65,7 @@ def save_submission(pred, path):
         raise ValueError
 
     folder = os.path.split(path)[0]
-    if not os.path.exists(folder):
+    if not os.path.exists(folder) and folder != '':
         os.makedirs(folder)
 
     header = 'Id,Prediction\n'
